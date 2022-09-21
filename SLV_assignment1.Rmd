@@ -11,4 +11,62 @@ Daniel Anadria, Kyuri Park, Ernst-Paul Swens, Emilia Loescher
 
 </center>
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+# Loading the data and required packages
+```{r}
+library(dplyr)
+
+
+housing <- read.csv("data/housing_data_italy_august2022.csv")
+
+colnames(housing)
+head(housing)
+```
+
+# Reducing/Modifying the data set
+We need to modify the data to be able to work with it. 
+For the visualization we have to create an "age" variable and exclude (?) housing units with a negative age (< -...).
+Furthermore, 
+For the second step, identifying the predictors, we need to exclude variables of class "character" and factors with more than 2 (3?) levels.  
+```{r}
+#Transforming "year_of_construction" in age (2022-year of construction) and removing "year_of_construction"
+housing$age <- 2022 - as.numeric(housing$year_of_construction)
+housing <- housing[, -10]
+
+#Removing "status" (all "other") and "availability" (all "not free/other")
+housing <- housing[, -c(10, 12)]
+
+
+#DOES NOT WORK YET?!
+housing[,11:22] <- apply(housing[,11:22], 2, as.factor)
+summary(housing)
+
+```
+
+
+
+# Summary statistics 
+
+# Visualization
+
+# Exploring predictors for price
+For the identification of predictors, we have to exclude some predictor such as ID and timestamp that do not make sense in this setting. Furthermore, in the first step, we exclude the location variable and identify a national prediction model.
+```{r}
+#For model building exclude the following variables:
+colnames(housing)[-c(1:4)]
+housing_red <- housing[,-c(1:4)]
+
+head(housing_red)
+```
+
+## Backward selection
+
+```{r}
+#step(lm(price ~., housing_red), direction = backward)
+```
+
+## Forward selection
+
+```{r}
+#housing %>% step(lm(price ~., .), direction = forward)
+```
