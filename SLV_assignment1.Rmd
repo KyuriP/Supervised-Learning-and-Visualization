@@ -1,33 +1,164 @@
 ---
-title: "Assignment 1"
+title: "SLV Assignment1"
+author: 
+- Daniel Anadria
+- Kyuri Park 
+- Ernst-Paul Swens
+- Emilia Loescher
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
+  pdf_document:
+    latex_engine: xelatex
   html_document:
-    css: SLV_assignment1.css
+    toc: true
+    toc_float: true
+geometry: "left = 2cm, right = 2cm, top = 2cm, bottom = 2cm"
+# mainfont: Georgia
+# sansfont: Georgia
 ---
+<style type="text/css">
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400&display=swap');
 
-<center>
+body{ /* Normal  */
+  font-size: 13px;
+  font-family: 'Lato', sans-serif;
+  }
+h1.title {
+  font-size: 25px;
+  color: DarkBlue;
+  margin-bottom:5px;
+}
+.author{
+  display: inline-block;
+  padding: 5px;
+}
+h1 { /* Header 1 */
+  font-size: 20px;
+  font-weight: bold;
+}
+h2 { /* Header 2 */
+  font-size: 15px;
+  line-height: 1.6;
+}
+h3 { /* Header 3 */
+  font-size: 14px;
+  line-height: 1.6;
+}
+pre { /* Code block - determines code spacing between lines */
+  font-size: 13px;
+}
+td {  /* Table  */
+  font-size: 12px;
+}
+</style>
+<hr>
 
-Daniel Anadria, Kyuri Park, Ernst-Paul Swens, Emilia Loescher
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE,
+               warning = FALSE,
+               comment = NA)
 
-</center>
-
-
-# Loading the data and required packages
-```{r}
-library(dplyr)
-
-
-housing <- read.csv("data/housing_data_italy_august2022.csv")
-
-colnames(housing)
-head(housing)
 ```
 
-# Reducing/Modifying the data set
-We need to modify the data to be able to work with it. 
+# Introduction
+## About dataset
+We will use the data from [kaggle](https://www.kaggle.com/datasets/tangelus/housing-data-in-italy-august-2022?resource=download), which contains information about housing market in Italy.
+The data are scraped from one of the most relevant housing sales websites in Italy during the month of *August 2022*. The data consist of more than 223000 sales posts and some of the data were removed due to translation limitations (e.g., extended text-based description, specific url of the post).
+
+| Variable            | Description                    |
+| :------------------ | :------------------------------|
+|id                   |                                |
+|timestamp            |                                |
+|location             |                                |
+|title                |                                |
+|price                |                                |
+|n_rooms              |                                |
+|floor                |                                |
+|mq                   |                                |
+|n_bathrooms          |                                |
+|year_of_construction |                                |
+|availability         |                                |
+|energy_class         |                                |
+|status               |                                |
+|heating              |                                |
+|has_garage           |                                |
+|has_terrace          |                                |
+|has_garden           |                                |
+|has_balcony          |                                |
+|has_fireplace        |                                |
+|has_alarm            |                                |
+|has_air_conditioning |                                |
+|has_pool             |                                |
+|has_parking          |                                |
+|has_elevator         |                                |
+|is_furnished         |                                |
+Table: Description of variables
+
+## Exploratory question
+ 1. What are the important factors (highly-correlated) for housing price in Italy?
+    - Sub-question: Are there any differences in the set of important factors across different regions?
+ 2. Is there a geological trend in housing price in Italy? (e.g., Is housing more/less expensive in northern Italy compared to Southern Italy?) **Only if we can figure out the location of the regions**
+
+# Preparation
+## Load packages & Import data
+```{r}
+# load packages
+library(tidyverse)
+library(skimr)
+
+# import data
+housing <- read.csv("data/housing_data_italy_august2022.csv")
+```
+
+# Preliminary analysis
+We skim through our data using `skimr` package.  
+
+- We see our data consists of 223,409 rows and 25 columns.
+- Given our question, we conclude that `timestamp` (timestamp of the post) and `title` (title of the post) are irrelevant and hence exclude them from the further analysis.
+- In addition, we remove two columns that have only one unique value (i.e., `status` and `availibility`), as one cannot differentiate variables with respect to constant.
+- We see the data type of some variables are wrongly specified. We convert them to a correct type (e.g., `heating`: character --> factor, `has_xxx`: numeric --> factor, `is_furnished`: numeric --> factor).
+-  ***Remove id ? is it redundant? ***
+- ***What to do with the location??... there are 7023 unique locations. How do we want to deal with this?***
+- Lastly, we observe that several variables have lots of missing values (e.g., `price`, `n_rooms`, `floor`, `mq`, `n_batohrooms`). We will discuss how we want to deal with this in the following section. 
+```{r}
+# round up by 2 decimal places + disable scientific notation
+options(digits = 2, scipen = 999) 
+# specify skimming function
+my_skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
+                     numeric = sfl(p0 = NULL, p25=NULL, p50=NULL, p75=NULL,
+                                   p100=NULL, hist=NULL, median = ~median(., na.rm=T), 
+                                   min = ~min(., na.rm=T), max = ~max(., na.rm=T), n_unique=n_unique))
+# skim the data
+my_skim(housing) 
+
+housing %>% 
+  # select variables that have more than one unique value
+  select(where(~n_distinct(.) > 1)) %>% 
+  # remove timestamp and title
+  select(-c(timestamp, title)) %>% 
+  # fix the data type
+  mutate(across(c(starts_with("has"), is_furnished, heating), factor)) %>% 
+  # check the data again
+  my_skim()
+```
+
+# Imputation? Or plot the missingness to see if there is any pattern for NA vs non-NA
+
+# Summary statistics
+
+# Descriptive plots
+
+# Exploratory plots
+
+# Conclusion
+
+
+---
+## Reducing/Modifying the data set
+We need to modify the data to be able to work with it.
 For the visualization we have to create an "age" variable and exclude (?) housing units with a negative age (< -...).
-Furthermore, 
-For the second step, identifying the predictors, we need to exclude variables of class "character" and factors with more than 2 (3?) levels.  
+Furthermore,
+For the second step, identifying the predictors, we need to exclude variables of class "character" and factors with more than 2 (3?) levels.
 ```{r}
 #Transforming "year_of_construction" in age (2022-year of construction) and removing "year_of_construction"
 housing$age <- 2022 - as.numeric(housing$year_of_construction)
@@ -45,7 +176,7 @@ summary(housing)
 
 
 
-# Summary statistics 
+# Summary statistics
 
 # Visualization
 
