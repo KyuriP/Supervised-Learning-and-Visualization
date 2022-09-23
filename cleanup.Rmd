@@ -1,0 +1,52 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+data <- read.csv("data/housing_data_italy_august2022.csv", header = T, na.strings=c("","NA"))
+```
+
+```{r}
+library(dplyr)
+library(mice)
+```
+
+```{r}
+md.pattern(data)
+```
+
+```{r}
+test <- data %>% 
+   select(-c(id, timestamp, title, availability, status)) %>% 
+   mutate_at(vars(8:20), as.factor)
+```
+
+```{r}
+test[,c(2:20)] %>% filter(500000 > price) %>%
+   mice(m = 5, print=T)
+
+mutate(year_of_construction =na_if(year_of_construction, year_of_construction > 2022))
+```
+
+```{r}
+test <- data %>% 
+   select(-c(id, timestamp, title, availability, status)) %>% 
+   mutate_at(vars(8:20), as.factor) %>%
+   mutate(year_of_construction = replace(year_of_construction, year_of_construction > 2022, NA)) 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
