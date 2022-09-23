@@ -1,0 +1,244 @@
+---
+title: "SLV Assignment 1 Test Plots"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r, include=T, message=F, warning=F}
+library(tidygeocoder) # for extracting coordinates
+library(tidyverse) # for data wrangling 
+library(sf) # for spatial analysis
+library(sp) # for spatial analysis
+library(ggplot2) # for plotting
+library(leaflet) # for plotting
+
+```
+
+```{r}
+housing_data_italy_august2022 <- read.csv("data/housing_data_italy_august2022.csv")
+```
+
+
+Preparing the dataset for plotting
+-we want region information
+-we got these shape files from the website of the [Italian National Institute of Statistics] (https://www.istat.it/it/archivio/222527).
+-they contain regional information, as well shapes of each region
+
+```{r}
+com2022 <- st_read("data/italy_shape_2022_files/Com01012022_g") # municipality level shape file
+reg2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g") # region level shape file
+```
+
+We map every municipality in Italy to its respective region.
+
+```{r}
+com_selection <- com2022 %>% select(COD_REG, COD_CM, COMUNE) %>% as.data.frame()
+reg_selection <- reg2022 %>% select(COD_REG, DEN_REG) %>% as.data.frame()
+
+region_info <- merge(reg_selection, com_selection, by="COD_REG", all = T, to_lower = T) %>% select(-geometry.x, -geometry.y) 
+region_info$location <- tolower(region_info$COMUNE)
+
+data_full <- merge(housing_data_italy_august2022, region_info, by = "location")
+
+```
+
+
+# Aggregating Price Data to Regional Level
+
+```{r}
+aggregate_price <- 
+```
+
+
+```{r}
+test <- right_join(reg2022, data_full, by = "COD_REG") %>% 
+group_by(COD_REG) %>% mutate(avprice = mean(price)) %>%
+  ggplot(aes(fill = avprice)) +
+  geom_sf()
+
+test
+```
+
+
+
+
+
+
+
+NOTE: follow steps from Steps from https://www.agnesevardanega.eu/wiki/r/ggplot2/mappe
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+
+# Appendix DO NOT INCLUDE
+
+
+# Obtaining Coordinates
+
+The variable `location` is on the municipality ("comune") level. 
+For reference, Italy has [7904 municipalities spread over 20 regions] (https://www.tuttitalia.it/regioni/numero-comuni/). 
+In order to plot maps of Italy, we want to obtain coordinates of each municipality in `location`.
+
+Note that while `title` contains additional address information,
+the information is often incomplete
+and in many cases cannot be used to obtain coordinates. 
+For this reason we employ the following strategy to create the plots:
+
+1) We use the open-source Nominatim API, which is based on Open Street Maps,
+to geocode municipalities. In R, we access the API through the package `tidygeocoder`.
+Specifically, we use the `geocode` function with `location` as inputs,
+and `osm` (Open Street Map) as the method. 
+
+```{r donotrun, eval = F}
+# the following chunk geocodes all the unique municipalities
+# running this takes approximately 2 hours,
+# but we exported the resulting object and load it in the next chunk
+
+uniquemunicipalities <-unique(housing_data_italy_august2022$location) %>% 
+  as.data.frame() %>% 
+  geocode(".", method = 'osm', lat = latitude, long = longitude)
+
+save(uniquemunicipalities, file = "coordinates_unique_municipalities.Rdata")
+```
+
+Load unique location coordinates
+
+```{r}
+load("data/coordinates_unique_municipalities.Rdata")
+uniquemunicipalities <- rename(uniquemunicipalities, location = ".") # renaming first column
+```
+
+We inspect which coordinates were not found with the Nominatim API.
+They belong to two municipalities:
+
+```{r}
+uniquemunicipalities %>% subset(is.na(latitude) | is.na(longitude))
+```
+
+We retrieve the coordinates for these two municipalities using the ArcGIS API.
+
+```{r donotrun, eval = F}
+missingcoordinates <- data.frame(location = c("montebello ionico","montescudo - montecolombo")) %>% geocode(location, method = 'arcgis', lat = latitude, long = longitude)
+
+head(missingcoordinates)
+```
+
+We insert the newly found coordinates to the object containing all the unique coordinates:
+
+```{r}
+# uniquemunicipalities <- left_join(uniquemunicipalities, missingcoordinates) #what function does this?
+```
+
+```{r}
+sum(is.na(uniquemunicipalities$longitude))
+```
+
+
+2) We join the newly created coordinates to the original dataset
+
+```{r}
+data_with_coord <- merge(housing_data_italy_august2022, uniquemunicipalities, by="location", all = T)
+```
+
+------------------------------------------------------------------------------
+Using ArcGIS API for all locations
+
+```{r}
+
+arcgis_uniquemunicipalities <-unique(housing_data_italy_august2022$location) %>% 
+  as.data.frame() %>% 
+  geocode(".", method = 'arcgis', lat = latitude, long = longitude)
+
+save(arcgis_uniquemunicipalities, file = "coordinates_unique_municipalities.Rdata")
+
+
+```
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+Coordinates to Country [from] (https://stackoverflow.com/questions/14334970/convert-latitude-and-longitude-coordinates-to-country-name-in-r)
+
+```{r}
+library(sp)
+library(rworldmap)
+
+# The single argument to this function, points, is a data.frame in which:
+#   - column 1 contains the longitude in degrees
+#   - column 2 contains the latitude in degrees
+coords2country = function(points)
+{  
+  countriesSP <- getMap(resolution='low')
+  #countriesSP <- getMap(resolution='high') #you could use high res map from rworldxtra if you were concerned about detail
+
+  # convert our list of points to a SpatialPoints object
+
+  # pointsSP = SpatialPoints(points, proj4string=CRS(" +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
+
+  #setting CRS directly to that from rworldmap
+  pointsSP = SpatialPoints(points, proj4string=CRS(proj4string(countriesSP)))  
+
+
+  # use 'over' to get indices of the Polygons object containing each point 
+  indices = over(pointsSP, countriesSP)
+
+  # return the ADMIN names of each country
+  indices$ADMIN  
+  #indices$ISO3 # returns the ISO3 code 
+  #indices$continent   # returns the continent (6 continent model)
+  #indices$REGION   # returns the continent (7 continent model)
+}
+```
+
+```{r}
+test <- coords2country(c(data_with_coord[,27], data_with_coord[,26]))
+```
+------------------------------------------------------------------------------
+
+3) Since we extracted the coordinates of unique municipalities in `location`,
+each observation in the same municipality will have exactly the same coordinates.
+For our plotting purposes, we want to add a minuscule amount of randomness to the coordinates of each observation
+in order to distinguish it from other observation while not moving the coordinates significantly enough
+to truly change the location of each municipality. 
+We do this by assigning a very small variation from the Normal distribution with
+$\mu = 0$ and $\sigma^2 = 0.00001$. #set seed
+
+
+Add small random variation to each coordinate
+
+```{r}
+# see sf::st_jitter
+```
+
+
+4) We downloaded the shape of Italy from the website of the [Italian National Institute of Statistics] (https://www.istat.it/it/archivio/222527). This will be useful for plotting.
+
+
+
