@@ -97,6 +97,10 @@ Table: Description of variables
 ## Exploratory question
  1. What are the important factors (highly-correlated) for housing price in Italy?
     - Sub-question: Are there any differences in the set of important factors across different regions?
+  
+  **Maybe better: What are revelant  predictors for housing price in Italy? Sub-question: How good are the predictions using a national model across different regions?**
+
+    
  2. Is there a geological trend in housing price in Italy? (e.g., Is housing more/less expensive in northern Italy compared to Southern Italy?) **Only if we can figure out the location of the regions**
 
 # Preparation
@@ -107,7 +111,7 @@ library(tidyverse)
 library(skimr)
 
 # import data
-housing <- read.csv("data/housing_data_italy_august2022.csv")
+housing <- read.csv("data/housing_data_italy_august2022.csv", na.strings=c("","NA"), header = TRUE)
 ```
 
 # Preliminary analysis
@@ -137,7 +141,7 @@ housing %>%
   # remove timestamp and title
   select(-c(timestamp, title)) %>% 
   # fix the data type
-  mutate(across(c(starts_with("has"), is_furnished, heating), factor)) %>% 
+  mutate(across(c(starts_with("has"), is_furnished, heating, energy_class), factor)) %>% 
   # check the data again
   my_skim()
 ```
@@ -160,17 +164,23 @@ For the visualization we have to create an "age" variable and exclude (?) housin
 Furthermore,
 For the second step, identifying the predictors, we need to exclude variables of class "character" and factors with more than 2 (3?) levels.
 ```{r}
-#Transforming "year_of_construction" in age (2022-year of construction) and removing "year_of_construction"
-housing$age <- 2022 - as.numeric(housing$year_of_construction)
-housing <- housing[, -10]
 
-#Removing "status" (all "other") and "availability" (all "not free/other")
-housing <- housing[, -c(10, 12)]
+housing_red <- housing %>% 
+  #For model building exclude the following variables:
+  # select variables that have more than one unique value
+  select(where(~n_distinct(.) > 1)) %>% 
+  # remove timestamp and title
+  select(-c(timestamp, title)) %>% 
+  # fix the data type
+  mutate(across(c(starts_with("has"), is_furnished, heating), factor)) %>%
+  #Setting "year_of_construction" > 2026 to NA
+  mutate(year_of_construction = replace(year_of_construction, year_of_construction > 2026, NA)) %>%
+  #Transforming "year_of_construction" in age (2022-year of construction)
+  mutate(age = 2022 - as.numeric(year_of_construction)) %>% 
+  # Removing "year_of_construction"
+  select(-year_of_construction)
 
 
-#DOES NOT WORK YET?!
-housing[,11:22] <- apply(housing[,11:22], 2, as.factor)
-summary(housing)
 
 ```
 
@@ -181,23 +191,16 @@ summary(housing)
 # Visualization
 
 # Exploring predictors for price
-For the identification of predictors, we have to exclude some predictor such as ID and timestamp that do not make sense in this setting. Furthermore, in the first step, we exclude the location variable and identify a national prediction model.
-```{r}
-#For model building exclude the following variables:
-colnames(housing)[-c(1:4)]
-housing_red <- housing[,-c(1:4)]
 
-head(housing_red)
-```
 
 ## Backward selection
 
 ```{r}
-#step(lm(price ~., housing_red), direction = backward)
+#housing_red %>%  step(lm(price ~., .), direction = backward)
 ```
 
 ## Forward selection
 
 ```{r}
-#housing %>% step(lm(price ~., .), direction = forward)
+#housing_red %>%  select(-energy_class) %>%  step(lm(price ~., .), direction = forward)
 ```
