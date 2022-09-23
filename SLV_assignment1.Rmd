@@ -63,15 +63,15 @@ knitr::opts_chunk$set(message = FALSE,
 # Introduction
 ## About dataset
 We will use the data from [kaggle](https://www.kaggle.com/datasets/tangelus/housing-data-in-italy-august-2022?resource=download), which contains information about housing market in Italy.
-The data are scraped from one of the most relevant housing sales websites in Italy during the month of *August 2022*. The data consist of more than 223000 sales posts and some of the data were removed due to translation limitations (e.g., extended text-based description, specific url of the post).
+The data are scraped from one of the most relevant housing sales websites in Italy during the month of *August 2022*. The data consist of more than 223000 sales posts and some of the data were removed due to translation limitations (e.g., extended text-based description, specific url of the post). Additionally, we use Italy regional data from [Italian National Institute of Statistics] (https://www.istat.it/it/archivio/222527). We will extract the regional coding and geographical shape information so that we can cluster the [comunes](https://en.wikipedia.org/wiki/Comune) in our data (`location`) into regions and thereby we could represent values of interest on the regional map of Italy. ***... describe better the regional data!***
 
 | Variable            | Description                    |
 | :------------------ | :------------------------------|
 |id                   |                                |
-|timestamp            |                                |
-|location             |                                |
-|title                |                                |
-|price                |                                |
+|timestamp            |  timestamp of the post         |
+|location             |  community name                |
+|title                |  title of the post             |
+|price                |  sale price of house           |
 |n_rooms              |                                |
 |floor                |                                |
 |mq                   |                                |
@@ -107,11 +107,19 @@ Table: Description of variables
 ## Load packages & Import data
 ```{r}
 # load packages
-library(tidyverse)
-library(skimr)
+library(tidyverse) # for wrangling data
+library(skimr) # for skimming data 
+library(sf) # for spatial analysis
+library(sp) # for spatial analysis
 
 # import data
 housing <- read.csv("data/housing_data_italy_august2022.csv", na.strings=c("","NA"), header = TRUE)
+
+# additional data on Italy regional information
+# comune level shape file
+com2022 <- st_read("data/italy_shape_2022_files/Com01012022_g")[c("COD_REG","COD_CM", "COMUNE")]
+#  region level shape file
+reg2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g")
 ```
 
 # Preliminary analysis
@@ -135,16 +143,46 @@ my_skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
 # skim the data
 my_skim(housing) 
 
-housing %>% 
+housing <- housing %>% 
   # select variables that have more than one unique value
   select(where(~n_distinct(.) > 1)) %>% 
   # remove timestamp and title
-  select(-c(timestamp, title)) %>% 
+  select(-c(timestamp, title, id)) %>% 
   # fix the data type
-  mutate(across(c(starts_with("has"), is_furnished, heating, energy_class), factor)) %>% 
-  # check the data again
-  my_skim()
+  mutate(across(c(starts_with("has"), is_furnished, heating, energy_class), factor))
+
+# check the data again
+my_skim(housing)
 ```
+
+## Add regional-level geographical information 
+```{r}
+# add regional info to the comune level data
+dat_with_geo <- st_join(com2022, reg2022, by="COD_REG") %>% 
+  # we don't need comune level geometry info 
+  select(-c(COD_REG.x)) %>% 
+  # lower the case of COMUNEs to match them with the comunes in our data
+  mutate(location = tolower(COMUNE)) %>%
+  # rename the COD_REG column 
+  rename(COD_REG = COD_REG.y) %>% 
+  # merge with the housing data
+  left_join(housing, by = "location") %>% 
+  # relocate geometry column
+  relocate(geometry, .after=Shape_Area) 
+```
+
+## Try out plotting the map for the average price per region
+```{r}
+# get average price per regions
+avg_price_region <- dat_with_geo %>% 
+  group_by(DEN_REG) %>% 
+  summarize(avg_price = mean(price, na.rm=T))
+
+# not working in one-go
+ggplot(avg_price_region) +
+  geom_sf(aes(fill = avg_price))
+```
+
 
 # Imputation? Or plot the missingness to see if there is any pattern for NA vs non-NA
 
@@ -163,25 +201,23 @@ We need to modify the data to be able to work with it.
 For the visualization we have to create an "age" variable and exclude (?) housing units with a negative age (< -...).
 Furthermore,
 For the second step, identifying the predictors, we need to exclude variables of class "character" and factors with more than 2 (3?) levels.
+
 ```{r}
-
-housing_red <- housing %>% 
-  #For model building exclude the following variables:
-  # select variables that have more than one unique value
-  select(where(~n_distinct(.) > 1)) %>% 
-  # remove timestamp and title
-  select(-c(timestamp, title)) %>% 
-  # fix the data type
-  mutate(across(c(starts_with("has"), is_furnished, heating), factor)) %>%
-  #Setting "year_of_construction" > 2026 to NA
-  mutate(year_of_construction = replace(year_of_construction, year_of_construction > 2026, NA)) %>%
-  #Transforming "year_of_construction" in age (2022-year of construction)
-  mutate(age = 2022 - as.numeric(year_of_construction)) %>% 
-  # Removing "year_of_construction"
-  select(-year_of_construction)
-
-
-
+# 
+# housing_red <- housing %>% 
+#   #For model building exclude the following variables:
+#   # select variables that have more than one unique value
+#   select(where(~n_distinct(.) > 1)) %>% 
+#   # remove timestamp and title
+#   select(-c(timestamp, title)) %>% 
+#   # fix the data type
+#   mutate(across(c(starts_with("has"), is_furnished, heating), factor)) %>%
+#   #Setting "year_of_construction" > 2026 to NA
+#   mutate(year_of_construction = replace(year_of_construction, year_of_construction > 2026, NA)) %>%
+#   #Transforming "year_of_construction" in age (2022-year of construction)
+#   mutate(age = 2022 - as.numeric(year_of_construction)) %>% 
+#   # Removing "year_of_construction"
+#   select(-year_of_construction)
 ```
 
 
