@@ -57,7 +57,6 @@ td {  /* Table  */
 knitr::opts_chunk$set(message = FALSE,
                warning = FALSE,
                comment = NA)
-
 ```
 
 # Introduction
@@ -132,6 +131,7 @@ We skim through our data using `skimr` package.
 -  ***Remove id ? is it redundant? ***
 - ***What to do with the location??... there are 7023 unique locations. How do we want to deal with this?***
 - Lastly, we observe that several variables have lots of missing values (e.g., `price`, `n_rooms`, `floor`, `mq`, `n_batohrooms`). We will discuss how we want to deal with this in the following section. 
+
 ```{r}
 # round up by 2 decimal places + disable scientific notation
 options(digits = 2, scipen = 999) 
@@ -172,6 +172,7 @@ dat_with_geo <- st_join(com2022, reg2022, by="COD_REG") %>%
 ```
 
 ## Try out plotting the map for the average price per region
+
 ```{r}
 # get average price per regions
 avg_price_region <- dat_with_geo %>% 
@@ -220,6 +221,63 @@ For the second step, identifying the predictors, we need to exclude variables of
 #   select(-year_of_construction)
 ```
 
+## imputation
+
+```{r}
+set.seed(123)
+
+sampled.housing <- housing %>% 
+   filter(price < 15000000) %>%
+   sample_n(10000)
+sampled.housing
+
+library(mice)
+
+imp <- mice(sampled.housing, m = 5, seed = 1)
+```
+
+```{r}
+# model based on backward elimination
+fit <- with(imp, lm(price ~  mq + n_bathrooms + year_of_construction + 
+                    energy_class + heating + has_pool + has_elevator))
+
+summary(pool(fit))
+pool.r.squared(fit, adjusted = TRUE)
+```
+
+```{r}
+# model based on majority method
+scope <- list(upper = ~ n_rooms + floor + mq + n_bathrooms + year_of_construction + 
+                      energy_class + heating + has_garage + has_terrace + has_garden + 
+                      has_balcony + has_fireplace + has_alarm + has_air_conditioning + 
+                      has_pool + has_parking + has_elevator + is_furnished,
+              lower = ~ 1)
+expr <- expression(f1 <- lm(price ~ 1),
+                   f2 <- step(f1, scope = scope))
+fit <- with(imp, expr)
+
+formulas <- lapply(fit$analyses, formula)
+terms <- lapply(formulas, terms)
+votes <- unlist(lapply(terms, labels))
+table(votes)
+
+# actual model
+fit <- with(imp, lm(price ~  energy_class + has_alarm + has_elevator + has_garden +
+                    has_pool + heating + is_furnished + mq + n_bathrooms + 
+                    n_rooms + year_of_construction))
+
+summary(pool(fit))
+pool.r.squared(fit, adjusted = TRUE)
+```
+
+```{r}
+# stacked
+test <- cbind(complete(imp, "long"), weights = 1)
+
+summary(lm(price ~ energy_class + has_alarm + has_elevator + has_garden +
+                    has_pool + heating + is_furnished + mq + n_bathrooms + 
+                    n_rooms + year_of_construction, weights = weights, data = test))
+```
 
 
 # Summary statistics
