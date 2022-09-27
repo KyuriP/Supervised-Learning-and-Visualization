@@ -61,11 +61,17 @@ knitr::opts_chunk$set(message = FALSE,
 ```
 
 # Introduction
-## The data set
-We will explore the data from [kaggle](https://www.kaggle.com/datasets/tangelus/housing-data-in-italy-august-2022?resource=download), which contains information about housing market in Italy.
-The data are scraped from one of the most relevant housing sales websites in Italy during the month of *August 2022*. and some of the data were removed due to translation limitations (e.g., extended text-based description, specific url of the post).
 
-For each sale the following variables are available:
+## The Dataset
+
+We explore a dataset from [kaggle](https://www.kaggle.com/datasets/tangelus/housing-data-in-italy-august-2022?resource=download), which contains information about the housing market in Italy.
+The data were scraped from one of the most relevant housing sales websites in Italy during the month of *August 2022*. The data consist of more than 223,000 sales posts spread over 7,023 (89% of the total 7,904) Italian municipalities (*comuni*).
+Some of the entries were removed in dataset construction due to translation limitations (e.g., extended text-based description, specific url of the post). 
+
+In order to plot the statistics of interest to maps of Italy, we use the regional and provincial shape files which we obtained from [the Italian National Institute of Statistics] (https://www.istat.it/it/archivio/222527). 
+These files contain the regional and provincial coding and geographical shape information which can be used cluster the [comuni](https://en.wikipedia.org/wiki/Comune) in our data (`location`) into (107) provinces and (20) regions. 
+
+For each sale, the dataset contains the following variables:
 
 | Variable            | Description                    |
 | :------------------ | :------------------------------|
@@ -73,7 +79,7 @@ For each sale the following variables are available:
 |timestamp            | Timestamp consisting of 10 digits                               |
 |location             | Location on municipality level                               |
 |title                |  Short description of property                              |
-|price                |  Price in Euro                              |
+|price                |  Price in Euros                              |
 |n_rooms              | Number of rooms                               |
 |floor                | Floor                              |
 |mq                   |       Size in square meters                         |
@@ -98,22 +104,26 @@ Table: Description of variables
 
 
 
-## Exploratory question
-We choose to focus on three four exploratory questions focusing on housing prices in Italy.\
+## Exploratory Questions
 
-\textbf{Firstly}, we explore if there is a geological trend in average housing prices in Italy. (E.g., Is housing more/less expensive in Northern Italy compared to Southern Italy?) \
+We focus on four exploratory questions concerning housing prices in Italy.\
 
-\textbf{Secondly}, we examine if there are differences in the amount of variance between the different regions. 
+\textbf{Firstly}, we explore if there are a geographical trends in average housing prices in Italy. (E.g., Is housing more/less expensive in Northern Italy compared to Southern Italy?) \
 
-\textbf{Thirdly}, it is of interest to us if there is a correlation between the missingness of housing price and the other variables. \
+\textbf{Secondly}, we examine if there are differences in mean regional variances of housing prices between the different provinces and regions. 
 
-\textbf{Fourthly}, we identify the variables that are most relevant when predicting housing prices in Italy.
+\textbf{Thirdly}, we explore if there is a correlation between the missingness of housing price and other variables. \
+
+\textbf{Fourthly}, we identify the most important predictors of housing prices in Italy. \
 
 
 # Preparation
+
 In order to start our exploratory analysis, we first load relevant packages and import the full data set. 
-## Load packages & Import data
-```{r}
+
+## Load Packages & Import Data
+
+```{r, warning=F, message=F}
 # load packages
 library(tidyverse)
 library(skimr)
@@ -123,12 +133,16 @@ housing <- read.csv("data/housing_data_italy_august2022.csv", na.strings=c("","N
 ```
 
 ## Preliminary analysis
+
 We skim through our data using the `skimr` package.  
-The data consists of 223,409 rows (sales) and 25 columns (variables).
-Given our questions, we conclude that `id` (ID of the sale) `timestamp` (timestamp of the sale) and `title` (description of the property) are irrelevant and, hence, we exclude them from the data set for further analysis.
+The original data consist of 223,409 rows (sales) and 25 columns (variables).
+Given our questions, we conclude that `id` (ID of the sale) `timestamp` (timestamp of the sale) and `title` (description of the property) are irrelevant and, hence, we exclude them from the dataset for further analysis.
 In addition, we remove two columns that have only one unique value (`status`: "other" and `availibility`: "not free/other"), as these variables do not provide information specific to certain sales.
-Furthermore, in this first step, we see the data type of some variables are wrongly specified. We convert them to a correct type (e.g., `heating`: character --> factor, `has_xxx`: numeric --> factor, `is_furnished`: numeric --> factor).\
-Also, we create a new variable `age` which gives the age of the property in 2022 by subtracting the year of construction from 2022. There are some unreasonable years (e.g. 2209). Thus, we set `age` to NA for an age smaller than -4. The reason that we allow for negative age at all is that some property might be sold before construction is completed. Hence, 2026 as year of construction is reasonable. 
+
+Furthermore, we observe that types of some variables are wrongly specified. We convert them to a correct type (e.g., `heating`: character --> factor, `has_xxx`: numeric --> factor, `is_furnished`: numeric --> factor).\
+
+We create a new variable `age` which contains the age of the property in 2022 by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g. 2209). Thus, we set `age` to NA for any `year_of_construction` further in the future from 2026. Some property may be sold before construction is completed, but we deem it unlikely for properties whose `year_of_construction` is more than 4 years removed from the present year.
+
 
 ```{r}
 housing_red <- housing %>% 
