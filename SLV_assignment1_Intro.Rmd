@@ -196,6 +196,7 @@ For the numeric variables, we observe that several have lots of missing values (
 
 **Discuss price descriptives, many outliers, deal with them**
 **include other plots, density, boxplot, etc.**
+**make the plots color-blind friendly**
 
 # Exploratory Analysis
 
