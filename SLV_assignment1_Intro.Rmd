@@ -108,7 +108,7 @@ Table: Description of variables
 
 We focus on four exploratory questions concerning housing prices in Italy.\
 
-\textbf{Firstly}, we explore if there are a geographical trends in average housing prices in Italy. (E.g., Is housing more/less expensive in Northern Italy compared to Southern Italy?) \
+\textbf{Firstly}, we explore if there are a geographical trends in the mean and median housing prices in Italy. (E.g., Is housing more/less expensive in Northern Italy compared to Southern Italy?) \
 
 \textbf{Secondly}, we examine if there are differences in mean regional variances of housing prices between the different provinces and regions. 
 
@@ -125,11 +125,20 @@ In order to start our exploratory analysis, we first load relevant packages and 
 
 ```{r, warning=F, message=F}
 # load packages
-library(tidyverse)
-library(skimr)
+library(tidyverse) # for wrangling data
+library(skimr) # for skimming data 
+library(sf) # for spatial analysis
+library(sp) # for spatial analysis
+library(ggplot2) # for plotting
+library(fuzzyjoin) # for joining on not-exact matches
 
 # import data
 housing <- read.csv("data/housing_data_italy_august2022.csv", na.strings=c("","NA"), header = TRUE)
+
+# import shape files
+munic_2022 <- st_read("data/italy_shape_2022_files/Com01012022_g")[c("COD_REG","COD_PROV", "COMUNE")]  # municipality level
+prov_2022 <- st_read("data/italy_shape_2022_files/ProvCM01012022_g") # province level
+reg_2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g") # region level
 ```
 
 ## Preliminary analysis
@@ -162,9 +171,9 @@ housing_red <- housing %>%
 ```
 
 
-After the modification of the data, we take a look at the summary statistics for the data set to get a better overview over the data set. 
-```{r}
+After the modification of the data, we take a look at the summary statistics for the data set to get a better overview of our data. 
 
+```{r}
 # round up by 2 decimal places + disable scientific notation
 options(digits = 2, scipen = 999) 
 # specify skimming function
@@ -179,46 +188,155 @@ my_skim(housing_red)
 
 ```
 
-From the tables, we can see that there are 12 different energy classes and 7023 different locations. When taking a closer look at the location variable, one can see that they are given on a municipality level. 
+From the tables, we can see that there are 12 different energy classes and 7023 different locations. When taking a closer look at the `location` variable, one can see that they are given on a municipality level. 
 
-Regarding the variables of type factor, we see that there are no missing values. The ration of properties with an alarm is the lowest with 1\% and the highest for air conditioning (30\%). 90\% of buildings have autonomous heating. 
+Regarding the factor variables, we see that there are no missing values. The ratio of properties with an alarm is the lowest with 1\% and the highest for air conditioning (30\%). 90\% of buildings have autonomous heating. 
 
-For the numeric variables, we observe that several have lots of missing values (e.g., `price`, `n_rooms`, `floor`, `mq`, `n_batohrooms`). We will discuss how we want to deal with this in section \ref{ref:missingness}. 
+For the numeric variables, we observe that several have lots of missing values (e.g., `price`, `n_rooms`, `floor`, `mq`, `n_bathrooms`). We will discuss how we want to deal with this in section \ref{ref:missingness}. 
 
+**Discuss price descriptives, many outliers, deal with them**
+**include other plots, density, boxplot, etc.**
 
-# Exploratory analysis
-## Question 1: Geographical differences in average housing prices
-We have described above, that each sales is assigned to one of 7023 locations on a municipality level. 
-In order to create a plot to visualize the differences in average housing prices across Italy, we group them together into 20 regions.
-For this process, we used 
--  ***Daniel, could you briefly describe the procedure here, please? :) ***
+# Exploratory Analysis
+
+## Question 1: Geographical Differences in the Mean and Median Housing Price
+
+Each sale in our dataset is assigned to one of 7023 municipalities. 
+In order to create plots which visualize the differences in average housing prices across Italy, we assign each municipality (*comune*) to its corresponding province (*provincia*) and region (*regione*). We use the data from the *Italian National Institute of Statistics* (*ISTAT*) to append the province and region information to every observed municipality in our dataset. 
 
 ### Preparation
+
+At the beginning of the assignment, we loaded the *ISTAT* shape files. These files are useful for two reasons.
+First, they contain the list of all Italian municipalities, their respective provinces and regions.
+Therefore, we can use this data to append our original dataset with additional location indicators.
+Second, they contain the shapes of Italy divided into provinces and regions. 
+This is particularly useful for creating map plots using `ggplot2`.
+
+For completeness of our dataset, we append the province and region information.
+We use fuzzy matching for inexact matches as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the ISTAT shape files. The result of the following chunk of code is that all the municipalities are assigned their regions and provinces.
+
+```{r}
+housing_red <- stringdist_left_join(housing_red, munic_2022,by = c("location" = "COMUNE"), distance_col = "distance",ignore_case = T) %>% 
+  group_by(location) %>% slice_min(distance) %>%
+  select(-geometry,-distance) %>% 
+  left_join(., as.data.frame(reg_2022[,c("COD_REG","DEN_REG")])) %>% 
+  select(-geometry, -COMUNE) %>% 
+  left_join(., as.data.frame(prov_2022[,c("DEN_UTS", "COD_PROV")], by = "COD_PROV")) %>% 
+  select(-geometry, -COD_REG, -COD_PROV) %>% 
+  rename(., "region" = "DEN_REG", "province" = "DEN_UTS") %>% 
+  relocate(c(region, province), .after=location)
+```
+
+To answer the first exploratory question, we aggregate our data on two levels: 1) regional and 2) provincial level by computing two aggregate statistics: 1) the mean housing price and 2) the variance in housing price on the two respective levels. This yields two datasets, one per aggregation level. To each, we attach geometric information needed for plotting and convert it to an `sf` object which is a requirement for plotting maps.
+
+```{r price_by_reg}
+price_by_reg <- housing_red %>% group_by(region) %>% 
+  summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T)) %>% left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
+```
+
+```{r price_by_prov}
+price_by_prov <- housing_red %>% group_by(province) %>% 
+  summarize(avg_price = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T)) %>% left_join(.,prov_2022, by = c("province" = "DEN_PROV")) %>% st_as_sf()
+```
+
 ### Plot
+
+We inspect the average housing price by region. 
+
+```{r}
+ggplot(price_by_reg) +
+  geom_sf(aes(fill = mean))+
+  theme_minimal()
+```
+
+We inspect the average housing price by province. 
+
+```{r}
+ggplot(price_by_prov) +
+  geom_sf(aes(fill = mean))+
+  theme_minimal()
+```
+
+
+We inspect the median housing price by region. 
+
+```{r}
+ggplot(price_by_reg) +
+  geom_sf(aes(fill = median))+
+  theme_minimal()
+```
+
+We inspect the median housing price by province. 
+
+```{r}
+ggplot(price_by_prov) +
+  geom_sf(aes(fill = median))+
+  theme_minimal()
+```
+
+
 ### Conclusion
 
 
-## Question 2: Geographical differences in variation of housing prices
+## Question 2: Geographical Differences in Variation of Housing Prices
 
 ### Preparation
+
+
+
 ### Plot
+
+We inspect the housing price variance by region. 
+
+```{r}
+ggplot(price_by_reg) +
+  geom_sf(aes(fill = variance))+
+  theme_minimal()
+```
+
+
+We inspect the housing price variance by region. 
+
+```{r}
+ggplot(price_by_prov) +
+  geom_sf(aes(fill = variance))+
+  theme_minimal()
+```
 ### Conclusion
+
 
 
 ## Question 3: Missingness and Imputation  \label{ref:missingness}
 -  ***Plot the missingness to see if there is any pattern for NA vs non-NA, correlation, imputation ***
 
 ### Preparation
+
+
 ### Plots
+
+
+
 ### Conclusion
 
 
-## Question 4: Relevant predictors for housing price
+## Question 4: Relevant Predictors for Housing Price
+
 ### Preparation
+
+
+
 ### Analysis
+
+
+
 ### Conclusion
+
+
 
 
 # Overall Conclusion
+
+
+
 
 
