@@ -197,7 +197,7 @@ For the numeric variables, we observe that several have lots of missing values (
 **Discuss price descriptives, many outliers, deal with them**
 **include other plots, density, boxplot, etc.**
 **make the plots color-blind friendly**
-
+**name chunks, use cache = T on the final version**
 # Exploratory Analysis
 
 ## Question 1: Geographical Differences in the Mean and Median Housing Price
@@ -246,7 +246,8 @@ We inspect the mean housing price by region.
 
 ```{r}
 ggplot(price_by_reg) +
-  geom_sf(aes(fill = mean))+
+  geom_sf(aes(fill = mean))+  
+  ggtitle("Mean House Price by Region") +
   theme_minimal()
 ```
 
@@ -255,6 +256,7 @@ We inspect the average housing price by province.
 ```{r}
 ggplot(price_by_prov) +
   geom_sf(aes(fill = mean))+
+  ggtitle("Mean House Price by Province") +
   theme_minimal()
 ```
 
@@ -264,6 +266,7 @@ We inspect the median housing price by region.
 ```{r}
 ggplot(price_by_reg) +
   geom_sf(aes(fill = median))+
+  ggtitle("Median House Price by Region") +
   theme_minimal()
 ```
 
@@ -272,6 +275,7 @@ We inspect the median housing price by province.
 ```{r}
 ggplot(price_by_prov) +
   geom_sf(aes(fill = median))+
+  ggtitle("Median House Price by Province") +
   theme_minimal()
 ```
 
@@ -291,22 +295,25 @@ We inspect the housing price variance by region.
 ```{r}
 ggplot(price_by_reg) +
   geom_sf(aes(fill = variance))+
+  ggtitle("House Price Variance by Region") +
   theme_minimal()
 ```
 
 
-We inspect the housing price variance by region. 
+We inspect the housing price variance by province. 
 
 ```{r}
 ggplot(price_by_prov) +
   geom_sf(aes(fill = variance))+
+  ggtitle("House Price Variance by Province") +
   theme_minimal()
 ```
 We inspect the median absolute deviation of housing price by region.
 
 ```{r}
-ggplot(price_by_prov) +
+ggplot(price_by_reg) +
   geom_sf(aes(fill = mad))+
+  ggtitle("House Price Median Absolute Deviation by Region") +
   theme_minimal()
 ```
 
@@ -316,6 +323,7 @@ We inspect the median absolute deviation of housing price by province.
 ```{r}
 ggplot(price_by_prov) +
   geom_sf(aes(fill = mad))+
+  ggtitle("House Price Median Absolute Deviation by Province") +
   theme_minimal()
 ```
 
