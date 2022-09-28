@@ -232,17 +232,17 @@ To answer the first exploratory question, we aggregate our data on two levels: 1
 
 ```{r price_by_reg}
 price_by_reg <- housing_red %>% group_by(region) %>% 
-  summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T)) %>% left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
+  summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T), mad = mad(price,na.rm=T)) %>% left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
 ```
 
 ```{r price_by_prov}
 price_by_prov <- housing_red %>% group_by(province) %>% 
-  summarize(avg_price = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T)) %>% left_join(.,prov_2022, by = c("province" = "DEN_PROV")) %>% st_as_sf()
+  summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T), mad = mad(price, na.rm=T)) %>% left_join(.,prov_2022, by = c("province" = "DEN_PROV")) %>% st_as_sf()
 ```
 
 ### Plot
 
-We inspect the average housing price by region. 
+We inspect the mean housing price by region. 
 
 ```{r}
 ggplot(price_by_reg) +
@@ -275,11 +275,10 @@ ggplot(price_by_prov) +
   theme_minimal()
 ```
 
-
 ### Conclusion
 
 
-## Question 2: Geographical Differences in Variation of Housing Prices
+## Question 2: Geographical Differences in Variance and Median Absolute Deviation of Housing Prices
 
 ### Preparation
 
@@ -303,6 +302,23 @@ ggplot(price_by_prov) +
   geom_sf(aes(fill = variance))+
   theme_minimal()
 ```
+We inspect the median absolute deviation of housing price by region.
+
+```{r}
+ggplot(price_by_prov) +
+  geom_sf(aes(fill = mad))+
+  theme_minimal()
+```
+
+
+We inspect the median absolute deviation of housing price by province.
+
+```{r}
+ggplot(price_by_prov) +
+  geom_sf(aes(fill = mad))+
+  theme_minimal()
+```
+
 ### Conclusion
 
 
