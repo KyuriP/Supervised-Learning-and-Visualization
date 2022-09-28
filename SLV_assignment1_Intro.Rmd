@@ -60,6 +60,8 @@ knitr::opts_chunk$set(message = FALSE,
 
 ```
 
+
+
 # Introduction
 
 ## The Dataset
@@ -143,7 +145,7 @@ reg_2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g") # region level
 
 ## Preliminary analysis
 
-We skim through our data using the `skimr` package.  
+We skim through our data using the `skimr` package. This summary of the raw data set can be found in the Appendix.
 The original data consist of 223,409 rows (sales) and 25 columns (variables).
 Given our questions, we conclude that `id` (ID of the sale) `timestamp` (timestamp of the sale) and `title` (description of the property) are irrelevant and, hence, we exclude them from the dataset for further analysis.
 In addition, we remove two columns that have only one unique value (`status`: "other" and `availibility`: "not free/other"), as these variables do not provide information specific to certain sales.
@@ -363,5 +365,9 @@ ggplot(price_by_prov) +
 
 
 
-
+# Appendix 
+Summary of the raw data using the my_skim function.
+```{r}
+my_skim(housing)
+```
 
