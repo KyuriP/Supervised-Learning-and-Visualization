@@ -1,0 +1,26 @@
+---
+To-dos
+----
+- Elaborate the questions better once we have finalized content.
+
+- Describe summary table again (as per the changes).
+
+- Clean up the region difference histogram + conclusion
+
+- Clean up the missingness price plot + conclusion (think of a good transition to EP's imputation model..)
+
+- Make a coherent theme (coloring, lables, etc.) for all the plots throughout the document (Think of the ink-to-data ratio & being color-blind friendly)
+
+- map plots: fix the legend, colors. see if there is a better/efficient way to plot them
+
+- In final stage: annotate all the code neatly, front-page with toc, name chunks.
+
+- Check if both html & pdf renders nicely.
+
+---
+Points to discuss
+---
+- convert location, energy_class, n_rooms, n_bathrooms also to factor. (Do we all agree?) --> see if all relevant summary statistics are included.
+
+- Gerko tips: plot distributions of price per region
+
