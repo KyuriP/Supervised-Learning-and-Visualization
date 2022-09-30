@@ -109,7 +109,7 @@ For each sale, the dataset contains the following variables:
 |has_parking          | Parking present: yes (1), no (0)            |
 |has_elevator         | Elevator present: yes (1), no (0)            |
 |is_furnished         | Furniture present: yes (1), no (0)            |
-Table: Description of
+Table: Description of the Variables in the Italy Housing Dataset
 
 
 # Preparation
@@ -143,8 +143,6 @@ reg_2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g")
 ```
 
 # Data Cleaning
-
-We skim through our data using the `skimr` package. This summary of the raw data set can be found in the section \ref{ref:appendix} Appendix.
 
 The original data consist of 223,409 rows (*sales*) and 25 columns (*variables*).
 Given our research questions, we exclude: `id` (*ID of the sale*), `timestamp` (*timestamp of the sale*), and `title` (*description of the property*).
@@ -194,7 +192,8 @@ From *Figure 2*, we take that the distribution of housing prices after filtering
 
 ## Data Summary
 
-After data cleaning, we take a look at the summary statistics to get a better overview of our data. 
+After data cleaning, we take a look at the summary statistics to get a better overview of our data.
+We skim through our cleaned dataset using the `skimr` package. This summary of the raw dataset can be found in the section \ref{ref:appendix} Appendix.
 
 ```{r data_summary}
 # round up by 2 decimal places + disable scientific notation

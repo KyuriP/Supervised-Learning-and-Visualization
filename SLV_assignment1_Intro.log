@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999994 (TeX Live 2022) (preloaded format=xelatex 2022.9.23)  30 SEP 2022 23:07
+This is XeTeX, Version 3.141592653-2.6-0.999994 (TeX Live 2022) (preloaded format=xelatex 2022.9.23)  30 SEP 2022 23:58
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -789,66 +789,66 @@ File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 
 ] [2]
 LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <10> not available
-(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 245.
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 246.
 
 LaTeX Font Warning: Font shape `TU/lmtt/bx/it' in size <10> not available
-(Font)              Font shape `TU/lmtt/b/sl' tried instead on input line 245.
+(Font)              Font shape `TU/lmtt/b/sl' tried instead on input line 246.
 
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(1)/m/n' will be
-(Font)              scaled to size 7.0pt on input line 280.
+(Font)              scaled to size 7.0pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(1)/m/n' will be
-(Font)              scaled to size 5.0pt on input line 280.
+(Font)              scaled to size 5.0pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 10.00092pt on input line 280.
+(Font)              scaled to size 10.00092pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 7.00064pt on input line 280.
+(Font)              scaled to size 7.00064pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 5.00046pt on input line 280.
+(Font)              scaled to size 5.00046pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 9.99893pt on input line 280.
+(Font)              scaled to size 9.99893pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 6.99925pt on input line 280.
+(Font)              scaled to size 6.99925pt on input line 277.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 4.99947pt on input line 280.
-[3]
+(Font)              scaled to size 4.99947pt on input line 277.
 File: SLV_assignment1_Intro_files/figure-latex/figure1-1.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/figure1-1.pdf>
+[3]
 File: SLV_assignment1_Intro_files/figure-latex/figure2-1.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/figure2-1.pdf>
 [4] [5]
 
-LaTeX Warning: Reference `ref:missingness' on page 6 undefined on input line 502.
+LaTeX Warning: Reference `ref:missingness' on page 6 undefined on input line 501.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 513--514
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 515--517
+Underfull \hbox (badness 10000) in paragraph at lines 512--513
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 518--520
+Underfull \hbox (badness 10000) in paragraph at lines 514--516
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 521--523
+Underfull \hbox (badness 10000) in paragraph at lines 517--519
 
  []
 
-[6]
-Underfull \hbox (badness 10000) in paragraph at lines 524--526
+
+Underfull \hbox (badness 10000) in paragraph at lines 520--522
 
  []
 
-[7]
+
+Underfull \hbox (badness 10000) in paragraph at lines 523--525
+
+ []
+
+[6] [7]
 File: SLV_assignment1_Intro_files/figure-latex/median_mad_region-1.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/median_mad_region-1.pdf>
 
-Underfull \hbox (badness 10000) in paragraph at lines 613--618
+Underfull \hbox (badness 10000) in paragraph at lines 612--617
 [][]
  []
 
@@ -860,82 +860,83 @@ File: SLV_assignment1_Intro_files/figure-latex/missingness-1.pdf Graphic file (t
 [10]
 File: SLV_assignment1_Intro_files/figure-latex/missingness_density-1.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/missingness_density-1.pdf>
-[11]
-Overfull \hbox (26.2749pt too wide) in paragraph at lines 755--761
+
+Overfull \hbox (26.2749pt too wide) in paragraph at lines 754--760
 []\TU/lmr/m/n/10 The missingness of number of floors (@ref(fig:missingness_density) A) and number of rooms (@ref(fig:missingness_density)
  []
 
+[11]
 File: SLV_assignment1_Intro_files/figure-latex/missing_reg-1.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/missing_reg-1.pdf>
-[12] [13]
+[12]
 File: SLV_assignment1_Intro_files/figure-latex/unnamed-chunk-5-1.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/unnamed-chunk-5-1.pdf>
 File: SLV_assignment1_Intro_files/figure-latex/unnamed-chunk-5-2.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/unnamed-chunk-5-2.pdf>
 
-Underfull \hbox (badness 10000) in paragraph at lines 841--843
+Underfull \hbox (badness 10000) in paragraph at lines 840--842
 [][]
  []
 
-[14]
+[13] [14]
 File: SLV_assignment1_Intro_files/figure-latex/unnamed-chunk-5-3.pdf Graphic file (type pdf)
 <use SLV_assignment1_Intro_files/figure-latex/unnamed-chunk-5-3.pdf>
-[15] [16] [17]
-Overfull \hbox (9.27184pt too wide) in paragraph at lines 1014--1015
+[15] [16]
+Overfull \hbox (9.27184pt too wide) in paragraph at lines 1013--1014
  []\TU/lmr/m/n/10 n_missing
  []
 
 
-Overfull \hbox (13.06952pt too wide) in paragraph at lines 1016--1017
+Overfull \hbox (13.06952pt too wide) in paragraph at lines 1015--1016
  []\TU/lmr/m/n/10 complete_rate
  []
 
 
-Overfull \hbox (9.72008pt too wide) in paragraph at lines 1028--1029
+Overfull \hbox (9.72008pt too wide) in paragraph at lines 1027--1028
  []\TU/lmr/m/n/10 n_unique
  []
 
 
-Overfull \hbox (12.21951pt too wide) in paragraph at lines 1033--1033
+Overfull \hbox (12.21951pt too wide) in paragraph at lines 1032--1032
  []|\TU/lmr/m/n/10 1661135705.37|
  []
 
 
-Overfull \hbox (10.27744pt too wide) in paragraph at lines 1033--1033
+Overfull \hbox (10.27744pt too wide) in paragraph at lines 1032--1032
  []|\TU/lmr/m/n/10 1661135577|
  []
 
 
-Overfull \hbox (10.27744pt too wide) in paragraph at lines 1034--1034
+Overfull \hbox (10.27744pt too wide) in paragraph at lines 1033--1033
  []|\TU/lmr/m/n/10 1661114079|
  []
 
 
-Overfull \hbox (10.27744pt too wide) in paragraph at lines 1034--1034
+Overfull \hbox (10.27744pt too wide) in paragraph at lines 1033--1033
  []|\TU/lmr/m/n/10 1661158618|
  []
 
 
-Overfull \hbox (8.05743pt too wide) in paragraph at lines 1035--1035
+Overfull \hbox (8.05743pt too wide) in paragraph at lines 1034--1034
  []|\TU/lmr/m/n/10 7562062.01|
  []
 
 
-Overfull \hbox (10.27744pt too wide) in paragraph at lines 1035--1036
+Overfull \hbox (10.27744pt too wide) in paragraph at lines 1034--1035
  []|\TU/lmr/m/n/10 2147483647|
  []
 
 
-Overfull \hbox (19.55927pt too wide) in paragraph at lines 1041--1041
+Overfull \hbox (19.55927pt too wide) in paragraph at lines 1040--1040
 []|\TU/lmr/m/n/10 year_of_construction|  
  []
 
 
-Overfull \hbox (19.26926pt too wide) in paragraph at lines 1049--1049
+Overfull \hbox (19.26926pt too wide) in paragraph at lines 1048--1048
 []|\TU/lmr/m/n/10 has_air_conditioning|  
  []
 
-[18] (./SLV_assignment1_Intro.aux)
+[17] (./SLV_assignment1_Intro.aux)
 
 LaTeX Warning: There were undefined references.
 
@@ -949,6 +950,6 @@ Here is how much of TeX's memory you used:
  40413 multiletter control sequences out of 15000+600000
  475710 words of font info for 81 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 86i,7n,121p,1018b,439s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 86i,7n,121p,1018b,490s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on SLV_assignment1_Intro.pdf (18 pages).
+Output written on SLV_assignment1_Intro.pdf (17 pages).
