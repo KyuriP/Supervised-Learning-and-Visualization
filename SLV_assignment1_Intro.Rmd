@@ -281,7 +281,6 @@ p2 <- ggplot(price_by_reg) +
 ggarrange(p1, p2,
           labels = c("median", "variance"),
           legend = "bottom")
-
 ```
 
 **Price difference between high- and low-median groups**
@@ -395,89 +394,190 @@ cleaned_housing %>%
 
 
 
-## Question 3: Missingness and Imputation  \label{ref:missingness}
+## Question 3: Missingness \label{ref:missingness}
 
-### Preparation
+For this exploratory research, we are interested which variables can predict house prices. However, from an initial inspection, it became clear that some potential predictors contain missing values. Additionally, the outcome itself includes missing values. 
+
+Therefore, we are interesting to explore if the missingness of the predictors and the outcome variable: house prices are related. First, we investigated the correlation between the missingness indicator for price and the predictors. Second, we visually examined the relationship between the predictors' missingness indicators and the price densities. Lastly, we visually inspected the percentage of missingness per region. These results could provide us some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not. 
+
+```{r missingness, out.width="70%", fig.align='center', fig.cap="Distribution of housing price"}
+# barplot to show the missingness per variable
+cleaned_housing %>%
+   is.na() %>% colMeans() %>% stack() %>% 
+   ggplot(aes(x = reorder(ind, values), y=values)) +
+   geom_bar(stat="identity", width = .2, fill = "black") + 
+   geom_point() +
+   theme_minimal() + 
+   coord_flip() +
+   labs(x = "Variable", y = "Missingness (%)")
+```
+
+### Results
 
 ```{r}
-# create missingness indicator of price
+# missingness correlation between price and predictors
 cleaned_housing %>%
-  mutate(na_ind = ifelse(is.na(price), 1, 0)) %>% 
-  ungroup() %>% 
-  summarize(across(n_rooms:property_age, ~cor(as.numeric(.x), na_ind, use = "pairwise.complete.obs"))) %>% t(.) %>%  .[order(abs(.)),]
+   mutate(missing = ifelse(is.na(price), 1, 0)) %>% 
+   ungroup() %>% 
+   summarize(across(n_rooms:property_age, ~cor(as.numeric(.x), missing, 
+      use = "pairwise.complete.obs"))) %>% t(.) %>% .[order(abs(.)),] %>% 
+   round(2)
 ```
 
-### Plots
-- `energy_class`(cor = 0.271): a lot of missing values in class `a`, `a1`, `g` .. what does that mean?
-- `has_garden` (cor = -0.114) : lots of houses without a garden are missing.
-- `heating` (cor = 0.109): lots of houses with autonomous heating are missing.
-- `has_garage` (cor = -0.097) : lots of houses without a garage are missing.
-- `has_fireplace` (cor = -0.087) : lots of houses without a fireplace are missing.
-- `has_air_conditioning` (cor = -0.086) : lots of houses without AC are missing.
-```{r corrplots, collapse=TRUE}
-# add price missingness indicator
-house_naind <- cleaned_housing %>%
-  mutate(na_ind = ifelse(is.na(price), 1, 0)) 
+The missingness of price appears to be moderately correlation with the energy class. Further, the missingness of price seems to be weakly correlated to having a garden and heating, and the type of home heating system.
 
-## create plots for each of the correlated vars
-  
-# energy_class (cor = 0.27 the highest)
-house_naind %>%
-  ggplot(aes(x=energy_class, y = na_ind)) +
-  geom_col() + theme_minimal()
-
-
-plot_list <- list()
-
-plot_list <- map2(
-  c("has_garden", "heating", "has_garage", "has_fireplace", "has_air_conditioning"),
-  c("garden", "heating", "garage", "fireplace", "AC"),
-  function(var, lab) {
-    ggplot(house_naind, aes(x = .data[[var]], y = na_ind)) + 
-      geom_col() + 
+```{r missingness_density, warning=FALSE, out.width="70%", fig.align='center', fig.caption = "Density Plots for Price based on the Missing Indicator for A) Floor B) No. of Rooms C) No. of Bathrooms D) Square Metres"}
+# function to create a density plot of price with missing indicator
+missing_plots <- function(x) {
+   plot <- cleaned_housing %>% ungroup() %>%
+      mutate(missing = is.na(.[,x])) %>%
+      ggplot(aes(x = log10(price), fill = missing)) + 
+      geom_density(alpha = 0.5, color = NA) + 
       theme_minimal() + 
-      labs(x = lab, y = "") 
-     }
-  )
-ggarrange(plotlist = plot_list, nrow = 1, ncol = 5)
+      theme(legend.position = "top") + 
+      labs(x = expression(paste(Log["10"],"(Price)"), y = "Density")) + 
+      scale_x_continuous(limits = c(2, 7)) 
+   return(plot)
+}
+
+# multiple plots for floor, no. of rooms, no. of bathrooms, and meters squared
+ggarrange(missing_plots("floor"), 
+          missing_plots("n_rooms"),
+          missing_plots("n_bathrooms"),
+          missing_plots("mq"),
+          labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2)
 ```
 
-```{r missing_reg, fig.cap = "missingness of price per region"}
+The missingness of number of floors (\@ref(fig:missingness_density) A) and number of rooms (\@ref(fig:missingness_density) B) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (\@ref(fig:missingness_density) C) and the meters squared (\@ref(fig:missingness_density) D) missingness shows a different result, namely missingness tends to occur at higher house prices.
+
+```{r missing_reg, fig.cap = "Missingness of Price per Region"}
 ## check missingness w.r.t regions
-
-# get the total missing prices per region
-total_missing_region <- house_naind %>%
-  group_by(region) %>%
-  summarize(total_missing = sum(na_ind)) %>% 
-  left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
-
-# plot the missing prices over the map
-ggplot(total_missing_region) +
-  geom_sf(fill=NA) +
-  geom_point(
-    aes(color = "coral1", size = total_missing, geometry = geometry),
-    stat = "sf_coordinates") +
-  theme_void() + 
-  theme(legend.position = "bottom") + guides(guides(colour=FALSE)) ## not sure how to change the color of the legend points
+cleaned_housing %>% 
+   mutate(na_ind = ifelse(is.na(price), 1, 0)) %>%
+   group_by(region) %>%
+   summarize(total_missing = sum(na_ind) / n()) %>%
+   left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% 
+   st_as_sf() %>%
+   ggplot() +
+      geom_sf(fill=NA) +
+      geom_point(color = "coral1",
+      aes(size = total_missing, geometry = geometry),
+      stat = "sf_coordinates") +
+      theme_void() + 
+      theme(legend.position = "bottom")
 ```
 
+Finally, figure \@ref(fig:missing_reg) shows that the proportion of missing data is not equal for each region. 
 
 ### Conclusion
 
+We explored if the missingness of the predictors and the outcome variable: house prices are related. From our results it appears that it does. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include an multiple imputation procedure before the creation of the prediction model in the next section.
 
 
 ## Question 4: Relevant Predictors for Housing Price
 
+As mentioned in the previous section, we will handle the missing data using a multiple imputation procedure. Subsequently, we are interested to find out which variables can predict house prices. For this purpose, we used two step-wise modeling strategies. The first strategy consists of a backward selection method based on the pooled estimates. The second strategy is a forward selection method applied to each imputed data set ($m=5$) and variables are selected in the final that appear the majority of the models. The models will be compared based on their included predictors, pooled coefficient of determination, and Bayesian information criterion (BIC).
+
 ### Preparation
 
+```{r}
+# fix seed for reproducibility
+set.seed(1)
 
+# reduced data set 
+housing_sampled <- cleaned_housing %>% 
+   # ungroup on location
+   ungroup() %>%
+   # sample 10000 records
+   sample_n(10000) %>%
+   # ignore location, and province information
+   select(-location, -province)
+```
+
+```{r eval=FALSE, include=FALSE}
+library(mice)
+
+# create predictor matrix
+pred <- housing_sampled %>% quickpred()
+
+# multiple imputation procedure (m = 5)
+imp <- mice(housing_sampled, m = 5, seed = 1, predictorMatrix = pred, print = TRUE)
+```
+
+```{r}
+# convergence of the algorithm
+plot(imp)
+
+# plausibility of the imputed data
+densityplot(imp, ~n_rooms + mq + floor + n_bathrooms + price, lwd = 2)
+```
+
+To reduce the computation time of the imputation model, we sampled 10000 records from the initial data set. Further, for the scope of this exploratory research, we limited ourselves to simple random sampling and disregarding location and province as predictors. Furthermore, we limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data.
 
 ### Analysis
 
+```{r eval=FALSE, include=FALSE}
+# model based on backward selection method based on the pooled estimates
+model_1 <- with(imp, lm(price ~ region + n_rooms + mq + n_bathrooms +
+   energy_class + heating + has_terrace + has_alarm +
+   has_pool + has_elevator))
 
+# pooled effect estimates 
+summary(pool(model_1)) 
+
+# pooled r-squared estimate 
+pool.r.squared(model_1)
+```
+
+The model based on backward selection method based on the pooled estimates contains 10 predictors: region, number of rooms, squared meters, number of bathrooms, energy class, type of home heating system, and the home including a terrace, alarm, pool, or elevator. The predictors in the model explain 40 percent of the variability observed in the house price.
+
+```{r message=FALSE, warning=FALSE}
+# define the scope of which predictors
+scope <- list(upper = ~ region + n_rooms + floor + mq + n_bathrooms + 
+   energy_class + heating + has_garage + has_terrace + has_garden + has_balcony + 
+   has_fireplace + has_alarm + has_air_conditioning + has_pool + has_parking + 
+   has_elevator + is_furnished + property_age,
+              lower = ~ 1)
+
+# apply a forward selection method to each imputed data set
+expr <- expression(f1 <- lm(price ~ 1),
+                   f2 <- step(f1, scope = scope))
+fit <- with(imp, expr)
+
+# majority vote which predictors to include
+formulas <- lapply(fit$analyses, formula)
+terms <- lapply(formulas, terms)
+votes <- unlist(lapply(terms, labels))
+table(votes)
+
+# model based on forward selection method applied to each imputed data set
+model_2 <- with(imp, lm(price ~ energy_class + floor + has_alarm + has_elevator + 
+   has_garden + has_pool + has_terrace + heating + mq + n_bathrooms + 
+   n_rooms + property_age + region))
+
+# pooled effect estimates 
+summary(pool(model_2))
+
+# pooled r-squared estimate 
+pool.r.squared(model_2, adjusted = TRUE)
+```
+
+The model based on backward selection method based on the pooled estimates contains 13 predictors: region, number of rooms, number of floor, squared meters, number of bathrooms, energy class, type of home heating system, property age and the home including a elevator, alarm, garden, pool, or terrace. The predictors in the model explain 40 percent of the variability observed in the house price. The code for the second model is reused from Gerko Vinks' mice vignettes, which are [publicly available]("https://www.gerkovink.com/miceVignettes/").
+
+```{r}
+# derive the BIC value for each model
+model_1_bic <- model_1$analyses %>% sapply(BIC)
+model_2_bic <- model_2$analyses %>% sapply(BIC)
+
+# compare the BIC value
+sum(model_1_bic < model_2_bic)
+model_2_bic - model_1_bic
+```
+
+To compare the models we used the BIC for each imputed data set. For all imputed data sets, the BIC favors model 1 over model 2. For all comparisons, the absolute difference in BIC score is at least 10 points. So, according to the BIC model 1 is preferred. This is congruent with the coefficient of determination results, considering adding three predictors: floor, property age, garden, did not yield a higher r-squared value. 
 
 ### Conclusion
-
 
 
 
