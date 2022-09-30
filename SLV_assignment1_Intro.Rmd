@@ -495,7 +495,7 @@ housing_sampled <- cleaned_housing %>%
    select(-location, -province)
 ```
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 library(mice)
 
 # create predictor matrix
@@ -517,7 +517,7 @@ To reduce the computation time of the imputation model, we sampled 10000 records
 
 ### Analysis
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 # model based on backward selection method based on the pooled estimates
 model_1 <- with(imp, lm(price ~ region + n_rooms + mq + n_bathrooms +
    energy_class + heating + has_terrace + has_alarm +
