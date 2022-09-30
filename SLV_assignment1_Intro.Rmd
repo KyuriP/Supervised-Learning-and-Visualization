@@ -4,7 +4,7 @@ author:
 - Daniel Anadria
 - Kyuri Park 
 - Ernst-Paul Swens
-- Emilia Loescher
+- Emilia Löscher
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
   pdf_document:
@@ -64,16 +64,21 @@ knitr::opts_chunk$set(message = FALSE,
 ***Frontpage with toc***
 
 \newpage
+
 # Introduction
+
+This is an exploratory data analysis of the Italian housing market in 2022. 
+For context, Italy contains a total of 20 regions (*regioni*), 107 provinces (*province*) and 7,904 municipalities (*comuni*). In the present work, we pose several interesting research questions which can be answered by means of data visualization and predictive model building.
 
 ## The Dataset
 
-We explore a dataset from [kaggle](https://www.kaggle.com/datasets/tangelus/housing-data-in-italy-august-2022?resource=download), which contains information about the housing market in Italy.
-The data were scraped from one of the most relevant housing sales websites in Italy during the month of *August 2022*. The data consist of more than 223,000 sales posts spread over 7,023 (89% of the total 7,904) Italian municipalities (*comuni*).
-Some of the entries were removed in dataset construction due to translation limitations (e.g., extended text-based description, specific url of the post). 
+Our dataset originates from [Kaggle](https://www.kaggle.com/datasets/tangelus/housing-data-in-italy-august-2022?resource=download). 
+It contains information about the housing market in Italy in 2022.
+The data were scraped from one of the most prominent housing sales websites in Italy during the month of *August 2022*. The data consist of more than 223,000 sales posts spread over 7,023 (89% coverage) Italian municipalities.
+Some of the entries were removed during dataset construction due to translation limitations (e.g., extended text-based description, specific url of the post). We do not have any information on the representativeness of our dataset. Hence, we advise caution when drawing inferences from our findings. Any inferences would require the analysis to be repeated with a representative dataset.
 
-In order to plot the statistics of interest to maps of Italy, we use the regional and provincial shape files which we obtained from the [Italian National Institute of Statistics](https://www.istat.it/it/archivio/222527). 
-These files contain the regional and provincial coding and geographical shape information which can be used cluster the [comuni](https://en.wikipedia.org/wiki/Comune) in our data (`location`) into (107) provinces and (20) regions. 
+In order to plot the statistics of interest to maps of Italy, we use the regional and provincial shape files which we obtained from the *Italian National Institute of Statistics* [ISTAT](https://www.istat.it/it/archivio/222527). 
+These files contain the regional and provincial coding and geographical shape information which can be used cluster the [municipalities](https://en.wikipedia.org/wiki/Comune) in our `location` variable into their respective provinces and regions. 
 
 For each sale, the dataset contains the following variables:
 
@@ -107,28 +112,14 @@ For each sale, the dataset contains the following variables:
 Table: Description of
 
 
-
-## Exploratory Questions (***EDIT LATER***)
-
-We focus on four exploratory questions concerning housing data set in Italy.\
-
-\textbf{Firstly}, we explore if there are any geographical trends in the mean and median housing prices in Italy. (E.g., Is housing more/less expensive in Northern Italy compared to Southern Italy?) \
-
-\textbf{Secondly}, we examine if there are differences in mean regional variances of housing prices between the different provinces and regions. 
-
-\textbf{Thirdly}, we explore if there is a correlation between the missingness of housing price and other variables. \
-
-\textbf{Fourthly}, we identify the most important predictors of housing prices in Italy. \
-
-
 # Preparation
 
-In order to start our exploratory analysis, we first load relevant packages and import the full data set. 
+In order to start our exploratory analysis, we first load relevant packages and import the dataset as well as ISTAT shape files. 
 
 ## Load Packages & Import Data
 
-```{r, results='hide'}
-## load packages
+```{r libraries+datasets, results='hide'}
+# load packages
 library(tidyverse) # for wrangling data
 library(magrittr) # for using pipes
 library(skimr) # for skimming data 
@@ -139,69 +130,73 @@ library(fuzzyjoin) # for joining on not-exact matches
 library(ggpubr) # for arranging ggplots
 
 
-## import Italy housing data
+# import Italy housing data
 housing <- read.csv("data/housing_data_italy_august2022.csv", na.strings=c("","NA"), header = TRUE)
 
-## import Italy shape data
-# municipality level
-munic_2022 <- st_read("data/italy_shape_2022_files/Com01012022_g")[c("COD_REG","COD_PROV", "COMUNE")]  
-# province level
+# import ISTAT shape files
+## municipality
+muni_2022 <- st_read("data/italy_shape_2022_files/Com01012022_g")[c("COD_REG","COD_PROV", "COMUNE")]  
+## province
 prov_2022 <- st_read("data/italy_shape_2022_files/ProvCM01012022_g") 
-# region level
+## region
 reg_2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g")
 ```
 
-# Preliminary analysis
+# Data Cleaning
 
 We skim through our data using the `skimr` package. This summary of the raw data set can be found in the section \ref{ref:appendix} Appendix.
-The original data consist of 223,409 rows (sales) and 25 columns (variables).
-Given our questions, we conclude that `id` (ID of the sale), `timestamp` (timestamp of the sale), and `title` (description of the property) are irrelevant and, hence, we exclude them from the dataset for further analysis.
-In addition, we remove two columns that have only one unique value (`status`: "other" and `availibility`: "not free/other"), as these variables do not provide information specific to certain sales.
 
-Furthermore, we observe that types of some variables are wrongly specified. We convert them to a correct type (e.g., `heating`: character --> factor, `has_xxx`: numeric --> factor, `is_furnished`: numeric --> factor).
+The original data consist of 223,409 rows (*sales*) and 25 columns (*variables*).
+Given our research questions, we exclude: `id` (*ID of the sale*), `timestamp` (*timestamp of the sale*), and `title` (*description of the property*).
+In addition, we exclude two columns that have only one unique value (`status`: "other" and `availibility`: "not free/other"), as these are not variables but constants.
 
-We create a new variable `age` which contains the age of the property as of 2022 by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g., 2209). Some properties may be sold before construction is completed, but we deem it unlikely for properties whose `year_of_construction` is more than 4 years later from now. Thus, we exclude the `age` of property lower than $-4$ (i.e., exclude `year_of_construction` > 2026).
+We observe that types of some variables are wrongly specified. We convert them to a correct type (e.g., `heating`: character --> factor, `has_xxx`: numeric --> factor, `is_furnished`: numeric --> factor).
 
-The variable of our main interest `price` has some missing values, and we see that it is highly skewed to the right given that mean is far off to the right of the median (see section \ref{ref:appendix} Appendix). We look into the distribution of the `price` further in detail. As shown in Figure 1, there are extreme outliers in `price` that seem unrealistic (e.g., over 2 billion). We decide to filter out the houses whose price is over a million ***to prevent severe bias in our subsequent analyses ... KP: NOT SURE IF THIS IS CORRECT TO SAY*** (see Figure 2 for the distribution of the price for the filtered houses).
-```{r datacleanup}
-## cleaning up the housing data
-cleaned_housing <- housing %>% 
-  # select variables that have more than one unique value
-  select(where(~n_distinct(.) > 1)) %>% 
-  # fix the data type
-  mutate(across(c(starts_with("has"), is_furnished, heating, energy_class, n_rooms, n_bathrooms, location), factor)) %>%
-  # filter out houses whose price is over a million (while keeping NAs)
-  filter(price < 1e6 | is.na(price), 
-  # filter out houses whose construction year is more than 4 years later as of today 
-         year_of_construction < 2026 |is.na(year_of_construction)) %>% 
-  # create property age variable
-  mutate(property_age = 2022 - as.numeric(year_of_construction)) %>% 
-             # remove id, timestamp, title and year_of_construction
-  select(-c(id, timestamp, title, year_of_construction)) 
-```
+Next we create a new variable `age` (*age of the property*) by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g., 2209). While some properties may be sold before their construction is completed, we deem it unlikely for properties whose `year_of_construction` is more than 4 years removed from 2022. Thus, we exclude the `age` of property lower than $-4$ (i.e., `year_of_construction` > 2026).
 
+The variable of our main interest `price` is highly skewed to the right given that mean (239,939) is far off to the right of the median (135,000) (see section \ref{ref:appendix} Appendix). We look into the distribution of the `price` further in detail. We create a boxplot to examine the outliers (see *Figure 1*). 
 
-```{r boxplot, out.width="70%", fig.align='center', fig.cap="Distribution of housing price"}
-## boxplot of price
+```{r figure1, out.width="70%", fig.align='center', fig.cap="Boxplot of Housing Prices in Italy"}
+# boxplot of price
 housing %>% 
 ggplot(aes(x=price)) +
   geom_boxplot() + theme_minimal()
 ```
 
-```{r pricedensity, out.width="70%", fig.align='center', fig.cap="Histogram of housing price (under a million)"}
-## density plot of price (under million)
-housing %>% 
-  # filter out houses whose price is over a million
-  filter(price < 1e6) %>% 
+From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M (using the `filter` function), which are more likely to be affordable to an average Italian. The distribution of housing prices after filtering can be seen in *Figure 2*.
+
+```{r data_cleaning}
+# cleaning up the housing data
+cleaned_housing <- housing %>% 
+  ## select variables that have more than one unique value
+  select(where(~n_distinct(.) > 1)) %>% 
+  ## fix the data type
+  mutate(across(c(starts_with("has"), is_furnished, heating, energy_class, n_rooms, n_bathrooms, location), factor)) %>%
+  ## filter out houses whose price is over a million (while keeping NAs)
+  filter(price < 1e6 | is.na(price), 
+  ## filter out houses whose construction year is more than 4 years later as of today 
+         year_of_construction < 2026 |is.na(year_of_construction)) %>% 
+  ## create property age variable
+  mutate(property_age = 2022 - as.numeric(year_of_construction)) %>% 
+  ## remove id, timestamp, title and year_of_construction
+  select(-c(id, timestamp, title, year_of_construction)) 
+```
+
+
+```{r figure2, out.width="70%", fig.align='center', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
+# density plot of price (cleaned dataset)
+cleaned_housing %>% 
   ggplot(aes(price)) + 
   geom_histogram(aes(y=..density..), color=1, fill="white") + 
   geom_density(lwd=0.5, color = 4, fill=4, alpha=0.2) + theme_minimal()
 ```
+From *Figure 2*, we take that the distribution of housing prices after filtering appears a lot more ordinary. There is still a long right tail, but that is to be expected with housing prices in any country. The extreme outliers have been eliminated. From this plot, we also conclude that when working with housing price data, it is more informative to use centrality and spread measures which are robust to skewed data. For this reason, we will use the median and median absolute deviation instead of the mean and variance in our exploration of the present dataset. 
 
-## Data summary
-After the cleaning up the data, we take a look at the summary statistics for the data set to get a better overview of our data. 
+## Data Summary
 
-```{r}
+After data cleaning, we take a look at the summary statistics to get a better overview of our data. 
+
+```{r data_summary}
 # round up by 2 decimal places + disable scientific notation
 options(digits = 2, scipen = 999) 
 # specify skimming function
@@ -213,24 +208,33 @@ my_skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
 # summary table
 my_skim(cleaned_housing) 
 ```
+From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types.
 
-***DECRIBE THE SUMMARY TABLE as per changes***
+The output is separated into two tables: one for factors, and one for numeric variables.
 
-From the tables, we can see that there are 12 different energy classes and 7023 different locations. When taking a closer look at the `location` variable, one can see that they are given on a municipality level.
+For every factor, the table provides insights into: the number of missing values (`n_missing`), the proportion of the variable that is not missing (`complete_rate`), the number of unique observations (`n_unique`), and the most frequent levels (`top_counts`).
 
-For the numeric variables, we observe that several have lots of missing values (e.g., `price`, `n_rooms`, `floor`, `mq`, `n_bathrooms`). We will discuss how we want to deal with this in section \ref{ref:missingness}. 
+For the numeric variables, the table shows: the number of missing values (`n_missing`), the proportion of the variable that is not missing (`complete_rate`), the mean (`mean`), standard deviation (`sd`), the median (`median`), minimum (`min`), maximum (`max`) and the number of unique observations (`n_unique`). Importantly, a significant proportion (17.5%) of `price`, our main outcome of interest is missing. We discuss how we deal with this in the section \ref{ref:missingness}.
 
+Having transformed the data and examined its variables, we start the exploratory analysis.
 
+# Exploratory Data Analysis
 
+A good way to start an exploratory data analysis is to identify exploratory questions which will be answered.
 
-# Main (exploratory) Analysis
+We focus on four questions concerning the housing prices in Italy: \
 
-## Question 1: Geographical Differences in the Mean and Median Housing Price
+\textbf{1.} Are there any regional trends in the median housing prices and their absolute deviations in Italy? \
 
-Each sale in our dataset is assigned to one of 7023 municipalities. 
-In order to create plots which visualize the differences in average housing prices across Italy, we assign each municipality (*comune*) to its corresponding province (*provincia*) and region (*regione*). We use the data from the *Italian National Institute of Statistics* (*ISTAT*) to append the province and region information to every observed municipality in our dataset. 
+\textbf{2.} Are there any provincial trends in the median housing prices and their absolute deviations in Italy? \
 
-### Preparation
+\textbf{3.} Is there a correlation between the missingness of housing price and other variables? \
+
+\textbf{4.} What are the most important predictors of housing prices in Italy? \
+
+To answer our research questions, we first have to prepare our dataset for geographical plotting. 
+
+## Data Preparation for Geographical Plotting
 
 At the beginning of the assignment, we loaded the *ISTAT* shape files. These files are useful for two reasons.
 First, they contain the list of all Italian municipalities, their respective provinces and regions.
@@ -238,11 +242,11 @@ Therefore, we can use this data to append our original dataset with additional l
 Second, they contain the shapes of Italy divided into provinces and regions. 
 This is particularly useful for creating map plots using `ggplot2`.
 
-For completeness of our dataset, we append the province and region information.
+Each sale in our dataset is assigned to one of 7023 municipalities. In order to create plots which visualize the differences in average housing prices across Italy, we assign each municipality to its corresponding province and region. We use the data from *ISTAT* to append the province and region information to every observed municipality in our dataset. 
 We use fuzzy matching for inexact matches as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the ISTAT shape files. The result of the following chunk of code is that all the municipalities are assigned their regions and provinces.
 
 ```{r}
-cleaned_housing <- stringdist_left_join(cleaned_housing, munic_2022,by = c("location" = "COMUNE"), distance_col = "distance",ignore_case = T) %>% 
+cleaned_housing <- stringdist_left_join(cleaned_housing, muni_2022,by = c("location" = "COMUNE"), distance_col = "distance",ignore_case = T) %>% 
   group_by(location) %>% slice_min(distance) %>%
   select(-geometry,-distance) %>% 
   left_join(., as.data.frame(reg_2022[,c("COD_REG","DEN_REG")])) %>% 
@@ -253,11 +257,11 @@ cleaned_housing <- stringdist_left_join(cleaned_housing, munic_2022,by = c("loca
   relocate(c(region, province), .after=location)
 ```
 
-To answer the first exploratory question, we aggregate our data on two levels: 1) regional and 2) provincial level by computing two aggregate statistics: 1) the mean housing price and 2) the variance in housing price on the two respective levels. This yields two datasets, one per aggregation level. To each, we attach geometric information needed for plotting and convert it to an `sf` object which is a requirement for plotting maps.
+To answer the first two exploratory question, we aggregate our data on two levels: 1) regional and 2) provincial level by computing two aggregate statistics: 1) the median housing price and 2) the median absolute deviation in housing price on the two respective levels. This yields two datasets, one per aggregation level. To each, we attach geometric information needed for geographic plotting and convert it to an `sf` object which is a requirement for plotting maps.
 
 ```{r price_by_reg}
 price_by_reg <- cleaned_housing %>% group_by(region) %>% 
-  summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T), mad = mad(price,na.rm=T)) %>% left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
+  summarize(median = median(price, na.rm=T), mad = mad(price,na.rm=T)) %>% left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
 ```
 
 ```{r price_by_prov}
@@ -265,136 +269,47 @@ price_by_prov <- cleaned_housing %>% group_by(province) %>%
   summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), variance = var(price, na.rm=T), mad = mad(price, na.rm=T)) %>% left_join(.,prov_2022, by = c("province" = "DEN_PROV")) %>% st_as_sf()
 ```
 
-### Plot
+Having done this, we are ready to start answering our exploratory questions.
 
-As the distribution of `price` is still quite skewed, we inspect the median housing price and the corresponding variance by region. 
+## Question 1: Regional Trends in the Median Housing Price and Absolute Deviations in Italy
 
-```{r mean_variance_region, fig.cap="Median and Variance of price per region"}
+```{r median_mad_region, fig.cap="Median and MAD of Price per Region"}
 p1 <- ggplot(price_by_reg) +
   geom_sf(aes(fill = median))+
   theme_minimal()
 
 p2 <- ggplot(price_by_reg) +
-  geom_sf(aes(fill = variance))+
+  geom_sf(aes(fill = mad))+
   theme_minimal()
 
 ggarrange(p1, p2,
-          labels = c("median", "variance"),
+          labels = c("median", "median absolute deviation"),
+          legend = "bottom")
+```
+***@Kyuri: reverse the color scheme, see if blue is color-blind friendly, fix the values on the legend***
+***@Emilia: interpret the plots above, name the regions with highest and lowest values for the median and mad***
+
+Interpretation goes here.
+
+## Question 2: Provincial Trends in the Median Absolute Deviation of Housing Prices
+
+```{r median_mad_province, fig.cap="Median and MAD of Price per Province"}
+p1 <- ggplot(price_by_prov) +
+  geom_sf(aes(fill = median))+
+  theme_minimal()
+
+p2 <- ggplot(price_by_prov) +
+  geom_sf(aes(fill = mad))+
+  theme_minimal()
+
+ggarrange(p1, p2,
+          labels = c("median", "median absolute deviation"),
           legend = "bottom")
 ```
 
-**Price difference between high- and low-median groups**
-We can show facet_wrap...
-```{r groupdiff}
-top2_med <- price_by_reg %>% slice_max(median, n = 2) %>% pull(region)
-bottom2_med <- price_by_reg %>% slice_min(median, n = 2) %>% pull(region)
-groups <- list(top2_med = top2_med, bottom2_med = bottom2_med)
+Interpretation goes here.
 
-p3 <- cleaned_housing %>% 
-  filter(region %in% top2_med) %>% 
-  ggplot(aes(x = price, group = region)) +
-  geom_histogram() +
-  facet_wrap(~region)
-
-p4 <- cleaned_housing %>% 
-  filter(region %in% bottom2_med) %>% 
-  ggplot(aes(x = price, group = region)) +
-  geom_histogram() +
-  facet_wrap(~region)
-
-ggarrange(p3, p4, nrow=2)
-
-## OR WE CAN PUT ALL IN ONE PLOT SHOWING THE HIGH MEDIAN GROUP VS LOW MEDIAN GROUP
-cleaned_housing %>% 
-  filter(region %in% c(top2_med, bottom2_med)) %>% 
-  mutate(grouping = case_when(region %in% top2_med ~ "high", TRUE ~ "low")) %>% 
-  ggplot(aes(x = price, color = grouping, fill = grouping)) +
-  geom_density(alpha=0.5) + theme_minimal()
-
-```
-
-### Conclusion
-
-
-<!-- We inspect the mean housing price by region.  -->
-
-<!-- ```{r} -->
-<!-- p1 <- ggplot(price_by_reg) + -->
-<!--   geom_sf(aes(fill = mean))+   -->
-<!--   ggtitle("Mean House Price by Region") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-
-
-<!-- We inspect the average housing price by province.  -->
-
-<!-- ```{r} -->
-<!-- ggplot(price_by_prov) + -->
-<!--   geom_sf(aes(fill = mean))+ -->
-<!--   ggtitle("Mean House Price by Province") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-
-
-
-<!-- We inspect the median housing price by province.  -->
-
-<!-- ```{r} -->
-<!-- ggplot(price_by_prov) + -->
-<!--   geom_sf(aes(fill = median))+ -->
-<!--   ggtitle("Median House Price by Province") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-
-
-<!-- ## Question 2: Geographical Differences in Variance and Median Absolute Deviation of Housing Prices -->
-
-<!-- ### Preparation -->
-
-<!-- ### Plot -->
-
-<!-- We inspect the housing price variance by region.  -->
-
-<!-- ```{r} -->
-<!-- ggplot(price_by_reg) + -->
-<!--   geom_sf(aes(fill = variance))+ -->
-<!--   ggtitle("House Price Variance by Region") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-
-
-<!-- We inspect the housing price variance by province.  -->
-
-<!-- ```{r} -->
-<!-- ggplot(price_by_prov) + -->
-<!--   geom_sf(aes(fill = variance))+ -->
-<!--   ggtitle("House Price Variance by Province") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-<!-- We inspect the median absolute deviation of housing price by region. -->
-
-<!-- ```{r} -->
-<!-- ggplot(price_by_reg) + -->
-<!--   geom_sf(aes(fill = mad))+ -->
-<!--   ggtitle("House Price Median Absolute Deviation by Region") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-
-
-<!-- We inspect the median absolute deviation of housing price by province. -->
-
-<!-- ```{r} -->
-<!-- ggplot(price_by_prov) + -->
-<!--   geom_sf(aes(fill = mad))+ -->
-<!--   ggtitle("House Price Median Absolute Deviation by Province") + -->
-<!--   theme_minimal() -->
-<!-- ``` -->
-
-<!-- ### Conclusion -->
-
-
-
-## Question 3: Missingness \label{ref:missingness}
+## Question 3: Correlation Between Missingness of Price and Other Variables
 
 For this exploratory research, we are interested which variables can predict house prices. However, from an initial inspection, it became clear that some potential predictors contain missing values. Additionally, the outcome itself includes missing values. 
 
@@ -475,7 +390,7 @@ Finally, figure \@ref(fig:missing_reg) shows that the proportion of missing data
 We explored if the missingness of the predictors and the outcome variable: house prices are related. From our results it appears that it does. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include an multiple imputation procedure before the creation of the prediction model in the next section.
 
 
-## Question 4: Relevant Predictors for Housing Price
+## Question 4: The Most Important Predictors of Housing Price in Italy
 
 As mentioned in the previous section, we will handle the missing data using a multiple imputation procedure. Subsequently, we are interested to find out which variables can predict house prices. For this purpose, we used two step-wise modeling strategies. The first strategy consists of a backward selection method based on the pooled estimates. The second strategy is a forward selection method applied to each imputed data set ($m=5$) and variables are selected in the final that appear the majority of the models. The models will be compared based on their included predictors, pooled coefficient of determination, and Bayesian information criterion (BIC).
 
@@ -532,7 +447,7 @@ pool.r.squared(model_1)
 
 The model based on backward selection method based on the pooled estimates contains 10 predictors: region, number of rooms, squared meters, number of bathrooms, energy class, type of home heating system, and the home including a terrace, alarm, pool, or elevator. The predictors in the model explain 40 percent of the variability observed in the house price.
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, results='hide'}
 # define the scope of which predictors
 scope <- list(upper = ~ region + n_rooms + floor + mq + n_bathrooms + 
    energy_class + heating + has_garage + has_terrace + has_garden + has_balcony + 
