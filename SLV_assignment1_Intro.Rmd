@@ -309,8 +309,7 @@ ggarrange(p1, p2,
 With the help of those plots, it can be seen that the high median of the *Trentino-Alto Adige* region is mainly due to the high median of 400 000€ in the province of *Bolzano*. As the other provinces in that region have lower median prices, the MAD in that region is comparably high. 
 The opposite is the case within the Southern regions, here, the provinces that make up the region of *Calabria* for example, all have a low median price. Hence, the MAD for that region is low. 
 
-**Price difference between high- and low-median groups**
-We can show facet_wrap...
+To take a closer look at the two regions with the highest and the lowest median, we plot the densities for the regions *Toscana*, *Trentino-Alto Adige*, *Calabria*, and *Molise*.
 ```{r groupdiff}
 top2_med <- price_by_reg %>% slice_max(median, n = 2) %>% pull(region)
 bottom2_med <- price_by_reg %>% slice_min(median, n = 2) %>% pull(region)
@@ -330,6 +329,8 @@ p4 <- cleaned_housing %>%
 
 ggarrange(p3, p4, nrow=2)
 ```
+An interesting take-away from this figure is that all the densities for the *house price* are right skewed. This is reasonable for house prices as one would expect that there are more cheap and moderately priced houses and only few very expensive houses. Furthermore, it is apparent that there are most sells in the dataset from the *Toscana* region and there are only very few very expensive houses in the regions of *Calabria* and *Molise* as one would expect with those regions having a lower median.
+
 
 ## Question 2: Correlation Between Missingness of Price and Other Variables \label{ref:missingness}
 
