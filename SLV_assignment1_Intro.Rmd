@@ -1,10 +1,11 @@
 ---
-title: "SLV Assignment1"
+title: "Supervised Learning & Visualization"
+subtitle: \vspace{5 cm} \LARGE \textbf{Assignment 1} \vspace{2 cm}
 author: 
 - Daniel Anadria
 - Kyuri Park 
 - Ernst-Paul Swens
-- Emilia Löscher
+- Emilia Löscher \vspace{10 cm}
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
   pdf_document:
@@ -61,7 +62,6 @@ knitr::opts_chunk$set(message = FALSE,
                comment = NA)
 ```
 
-***Frontpage with toc***
 
 \newpage
 
@@ -78,7 +78,7 @@ The data were scraped from one of the most prominent housing sales websites in I
 Some of the entries were removed during dataset construction due to translation limitations (e.g., extended text-based description, specific url of the post). We do not have any information on the representativeness of our dataset. Hence, we advise caution when drawing inferences from our findings. Any inferences would require the analysis to be repeated with a representative dataset.
 
 In order to plot the statistics of interest to maps of Italy, we use the regional and provincial shape files which we obtained from the *Italian National Institute of Statistics* [ISTAT](https://www.istat.it/it/archivio/222527). 
-These files contain the regional and provincial coding and geographical shape information which can be used cluster the [municipalities](https://en.wikipedia.org/wiki/Comune) in our `location` variable into their respective provinces and regions. 
+These files contain the regional and provincial coding and geographical shape information which can be used to cluster the [municipalities](https://en.wikipedia.org/wiki/Comune) in our `location` variable into their respective provinces and regions. 
 
 For each sale, the dataset contains the following variables:
 
@@ -114,7 +114,7 @@ Table: Description of the Variables in the Italy Housing Dataset
 
 # Preparation
 
-In order to start our exploratory analysis, we first load relevant packages and import the dataset as well as ISTAT shape files. 
+In order to start our exploratory analysis, we first load relevant packages and import the dataset as well as the ISTAT shape files. 
 
 ## Load Packages & Import Data
 
@@ -142,6 +142,19 @@ prov_2022 <- st_read("data/italy_shape_2022_files/ProvCM01012022_g")
 reg_2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g")
 ```
 
+# Exploratory Research Questions
+
+A good way to start an exploratory data analysis is to identify exploratory questions which will be answered.
+
+We focus on four questions concerning the housing prices in Italy: \
+
+\textbf{1.} Are there any regional and/or provincial trends in the median housing prices and their absolute deviations in Italy? \
+
+
+\textbf{2.} Is there a correlation between the missingness of housing price and other variables? \
+
+\textbf{3.} What are the most important predictors of housing prices in Italy? \
+
 # Data Cleaning
 
 The original data consist of 223,409 rows (*sales*) and 25 columns (*variables*).
@@ -150,9 +163,9 @@ In addition, we exclude two columns that have only one unique value (`status`: "
 
 We observe that types of some variables are wrongly specified. We convert them to a correct type (e.g., `heating`: character --> factor, `has_xxx`: numeric --> factor, `is_furnished`: numeric --> factor).
 
-Next we create a new variable `age` (*age of the property*) by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g., 2209). While some properties may be sold before their construction is completed, we deem it unlikely for properties whose `year_of_construction` is more than 4 years removed from 2022. Thus, we exclude the `age` of property lower than $-4$ (i.e., `year_of_construction` > 2026).
+Next we create a new variable `age` (*age of the property*) by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g., 2209). While some properties may be sold before their construction is completed, we deem it unlikely for properties whose `year_of_construction` is more than 4 years removed from 2022. Thus, we set the `age` of property lower than $-4$ (i.e., `year_of_construction` > 2026) to NA.
 
-The variable of our main interest `price` is highly skewed to the right given that mean (239,939) is far off to the right of the median (135,000) (see section \ref{ref:appendix} Appendix). We look into the distribution of the `price` further in detail. We create a boxplot to examine the outliers (see *Figure 1*). 
+The variable of our main interest `price` is highly skewed to the right given that the mean (239,939) is far off to the right of the median (135,000) (see Section \ref{ref:appendix} Appendix). We take a closer look at the distribution of the `price` with the help of a boxplot to examine the outliers (see *Figure 1*). 
 
 ```{r figure1, out.width="70%", fig.align='center', fig.cap="Boxplot of Housing Prices in Italy"}
 # boxplot of price
@@ -188,12 +201,12 @@ cleaned_housing %>%
   geom_histogram(aes(y=..density..), color=1, fill="white") + 
   geom_density(lwd=0.5, color = 4, fill=4, alpha=0.2) + theme_minimal()
 ```
-From *Figure 2*, we take that the distribution of housing prices after filtering appears a lot more ordinary. There is still a long right tail, but that is to be expected with housing prices in any country. The extreme outliers have been eliminated. From this plot, we also conclude that when working with housing price data, it is more informative to use centrality and spread measures which are robust to skewed data. For this reason, we will use the median and median absolute deviation instead of the mean and variance in our exploration of the present dataset. 
+From *Figure 2*, we take that the distribution of housing prices after filtering appears a lot more ordinary. There is still a long right tail, but that is to be expected with housing prices in any country. The extreme outliers have been eliminated. From this plot, we also conclude that when working with housing price data, it is more informative to use centrality and spread measures which are robust to skewed data. For this reason, we will use the median and median absolute deviation (MAD) instead of the mean and variance in our exploration of the present dataset. 
 
 ## Data Summary
 
 After data cleaning, we take a look at the summary statistics to get a better overview of our data.
-We skim through our cleaned dataset using the `skimr` package. This summary of the raw dataset can be found in the section \ref{ref:appendix} Appendix.
+We skim through our cleaned dataset using the `skimr` package. This summary of the raw dataset can be found in Section \ref{ref:appendix} Appendix.
 
 ```{r data_summary}
 # round up by 2 decimal places + disable scientific notation
@@ -207,29 +220,16 @@ my_skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
 # summary table
 my_skim(cleaned_housing) 
 ```
-From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types.
+From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types. The output is presented in two tables for factor and numeric variables, separately. 
 
-The output is separated into two tables: one for factors, and one for numeric variables.
+For every factor varible, the table provides insights into: the number of missing values (`n_missing`), the proportion of the variable that is not missing (`complete_rate`), the number of unique observations (`n_unique`), and the most frequent levels (`top_counts`).
 
-For every factor, the table provides insights into: the number of missing values (`n_missing`), the proportion of the variable that is not missing (`complete_rate`), the number of unique observations (`n_unique`), and the most frequent levels (`top_counts`).
-
-For the numeric variables, the table shows: the number of missing values (`n_missing`), the proportion of the variable that is not missing (`complete_rate`), the mean (`mean`), standard deviation (`sd`), the median (`median`), minimum (`min`), maximum (`max`) and the number of unique observations (`n_unique`). Importantly, a significant proportion (17.5%) of `price`, our main outcome of interest is missing. We discuss how we deal with this in the section \ref{ref:missingness}.
+For the numeric variables, the table shows: the number of missing values (`n_missing`), the proportion of the variable that is not missing (`complete_rate`), the mean (`mean`), standard deviation (`sd`), the median (`median`), minimum (`min`), maximum (`max`) and the number of unique observations (`n_unique`). Importantly, a significant proportion (17.5%) of `price`, our main outcome of interest, is missing. We discuss how we deal with this in the Section \ref{ref:missingness}.
 
 Having transformed the data and examined its variables, we start the exploratory analysis.
 
 # Exploratory Data Analysis
 
-A good way to start an exploratory data analysis is to identify exploratory questions which will be answered.
-
-We focus on four questions concerning the housing prices in Italy: \
-
-\textbf{1.} Are there any regional trends in the median housing prices and their absolute deviations in Italy? \
-
-\textbf{2.} Are there any provincial trends in the median housing prices and their absolute deviations in Italy? \
-
-\textbf{3.} Is there a correlation between the missingness of housing price and other variables? \
-
-\textbf{4.} What are the most important predictors of housing prices in Italy? \
 
 To answer our research questions, we first have to prepare our dataset for geographical plotting. 
 
@@ -270,7 +270,7 @@ price_by_prov <- cleaned_housing %>% group_by(province) %>%
 
 Having done this, we are ready to start answering our exploratory questions.
 
-## Question 1: Regional Trends in the Median Housing Price and Absolute Deviations in Italy
+## Question 1: Regional and Provincial Trends in the Median Housing Price and Absolute Deviations in Italy
 
 ```{r median_mad_region, fig.cap="Median and MAD of Price per Region"}
 p1 <- ggplot(price_by_reg) +
@@ -282,15 +282,13 @@ p2 <- ggplot(price_by_reg) +
   theme_minimal()
 
 ggarrange(p1, p2,
-          labels = c("median", "median absolute deviation"),
+          labels = c("median", "MAD"),
           legend = "bottom")
 ```
-***@Kyuri: reverse the color scheme, see if blue is color-blind friendly, fix the values on the legend***
-***@Emilia: interpret the plots above, name the regions with highest and lowest values for the median and mad***
 
-Interpretation goes here.
+On a regional level, we see that the median for the region *Trentino-Alto Adige* (200 000€) are the highest, and the lowest for *Molise* (79 000€). We recognize a trend that the median price is lower for more Southern regions in Italy. The only exception from this is the region of *Piemonte* (99 000€) which has a lower median price than the surrounding regions in the North. Regarding the MAD, a measure of variability within a region, we see that it is highest for the regions with higher median prices. This is recognizable as the color patterns in the median plot and the MAD plot are very similar. 
 
-## Question 2: Provincial Trends in the Median Absolute Deviation of Housing Prices
+To explore these trends on a lower lever, we take a look at the median and the MAD at the provincial level.
 
 ```{r median_mad_province, fig.cap="Median and MAD of Price per Province"}
 p1 <- ggplot(price_by_prov) +
@@ -305,15 +303,20 @@ ggarrange(p1, p2,
           labels = c("median", "median absolute deviation"),
           legend = "bottom")
 ```
+***@Kyuri: reverse the color scheme, see if blue is color-blind friendly, fix the values on the legend***
 
-Interpretation goes here.
+ 
+With the help of those plots, it can be seen that the high median of the *Trentino-Alto Adige* region is mainly due to the high median of 400 000€ in the province of *Bolzano*. As the other provinces in that region have lower median prices, the MAD in that region is comparably high. 
+The opposite is the case within the Southern regions, here, the provinces that make up the region of *Calabria* for example, all have a low median price. Hence, the MAD for that region is low. 
 
-## Question 3: Correlation Between Missingness of Price and Other Variables
+## Question 2: Correlation Between Missingness of Price and Other Variables \label{ref:missingness}
 
-For this exploratory research, we are interested which variables can predict house prices. However, from an initial inspection, it became clear that some potential predictors contain missing values. Additionally, the outcome itself includes missing values. 
+Ultimately, we are interested in which variables can predict house prices. However, from an initial inspection, it became clear that some potential predictors contain missing values. Additionally, the outcome itself includes missing values. 
 
-Therefore, we are interesting to explore if the missingness of the predictors and the outcome variable: house prices are related. First, we investigated the correlation between the missingness indicator for price and the predictors. Second, we visually examined the relationship between the predictors' missingness indicators and the price densities. Lastly, we visually inspected the percentage of missingness per region. These results could provide us some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not. 
+Therefore, we explored if the missingness of the predictors and the outcome variable *house prices* are related. First, we investigated the correlation between the missingness indicator for *price* and the predictors. Second, we visually examined the relationship between the predictors' missingness indicators and the *price* densities. Lastly, we visually inspected the percentage of missingness per region. These results provide us with some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not. 
 
+### Analyses and Results
+The percentage of missingness for each variable are given in Figure \@ref(fig:missingness). 
 ```{r missingness, out.width="70%", fig.align='center', fig.cap="Distribution of housing price"}
 # barplot to show the missingness per variable
 cleaned_housing %>%
@@ -325,9 +328,10 @@ cleaned_housing %>%
    coord_flip() +
    labs(x = "Variable", y = "Missingness (%)")
 ```
+The plot shows that the percentage of missing values lies above 30\% for the variable *floor* and above 25\% for the *number of rooms*. Furthermore, about 18\% of the *housing prices* are missing. Except for the *number of bathrooms* which has about 6\% values missing, for the remaining variables less than 3\% are missing, respectively. 
 
-### Results
 
+In the following, we explore the correlation between missingness of price and the other variables.
 ```{r}
 # missingness correlation between price and predictors
 cleaned_housing %>%
@@ -338,8 +342,9 @@ cleaned_housing %>%
    round(2)
 ```
 
-The missingness of price appears to be moderately correlation with the energy class. Further, the missingness of price seems to be weakly correlated to having a garden and heating, and the type of home heating system.
+The missingness of *price* appears to be moderately correlated with the *energy class*. Further, it seems to be weakly correlated to *having a garden* and type of home *heating* system.
 
+Next, we examined the relationship between the predictors' missingness indicators and the *price* densities by plotting the density of price (on a log10-scale) split by whether or not the respective value for a given variable is missing or not:
 ```{r missingness_density, warning=FALSE, out.width="70%", fig.align='center', fig.caption = "Density Plots for Price based on the Missing Indicator for A) Floor B) No. of Rooms C) No. of Bathrooms D) Square Metres"}
 # function to create a density plot of price with missing indicator
 missing_plots <- function(x) {
@@ -359,12 +364,14 @@ ggarrange(missing_plots("floor"),
           missing_plots("n_rooms"),
           missing_plots("n_bathrooms"),
           missing_plots("mq"),
-          labels = c("A", "B", "C", "D"),
+          labels = c("A Floor", "B # rooms", "C # bathrooms", "D $m^2$"),
           ncol = 2, nrow = 2)
 ```
 
-The missingness of number of floors (\@ref(fig:missingness_density) A) and number of rooms (\@ref(fig:missingness_density) B) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (\@ref(fig:missingness_density) C) and the meters squared (\@ref(fig:missingness_density) D) missingness shows a different result, namely missingness tends to occur at higher house prices.
+The missingness of number of floors (\@ref(fig:missingness_density) A) and number of rooms (\@ref(fig:missingness_density) B) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (\@ref(fig:missingness_density) C) and the meters squared (\@ref(fig:missingness_density) D) missingness shows a different result, namely, missingness tends to occur at higher house prices.
 
+
+Lastly, the missingness in price by region is visualized by the following plot:
 ```{r missing_reg, fig.cap = "Missingness of Price per Region"}
 ## check missingness w.r.t regions
 cleaned_housing %>% 
@@ -382,16 +389,16 @@ cleaned_housing %>%
       theme(legend.position = "bottom")
 ```
 
-Finally, figure \@ref(fig:missing_reg) shows that the proportion of missing data is not equal for each region. 
+Figure \@ref(fig:missing_reg) shows that the proportion of missing data is not equal for each region. 
 
 ### Conclusion
 
-We explored if the missingness of the predictors and the outcome variable: house prices are related. From our results it appears that it does. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include an multiple imputation procedure before the creation of the prediction model in the next section.
+We explored if the missingness of the predictors and the outcome variable *house prices* are related. From our results it appears that they are. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include a multiple imputation procedure before the creation of the prediction model in the next section.
 
 
-## Question 4: The Most Important Predictors of Housing Price in Italy
+## Question 3: The Most Important Predictors of Housing Price in Italy
 
-As mentioned in the previous section, we will handle the missing data using a multiple imputation procedure. Subsequently, we are interested to find out which variables can predict house prices. For this purpose, we used two step-wise modeling strategies. The first strategy consists of a backward selection method based on the pooled estimates. The second strategy is a forward selection method applied to each imputed data set ($m=5$) and variables are selected in the final that appear the majority of the models. The models will be compared based on their included predictors, pooled coefficient of determination, and Bayesian information criterion (BIC).
+As mentioned in the previous section, we will handle the missing data using a multiple imputation procedure. Subsequently, we are interested to find out which variables can predict house prices. For this purpose, we used two step-wise modeling strategies. The first strategy consists of a backward selection method based on the pooled estimates. The second strategy is a forward selection method applied to each imputed dataset ($m=5$) and variables are selected in the final that appear the majority of the models. The models will be compared based on their included predictors, pooled coefficient of determination, and Bayesian information criterion (BIC).
 
 ### Preparation
 
@@ -399,7 +406,7 @@ As mentioned in the previous section, we will handle the missing data using a mu
 # fix seed for reproducibility
 set.seed(1)
 
-# reduced data set 
+# reduced dataset 
 housing_sampled <- cleaned_housing %>% 
    # ungroup on location
    ungroup() %>%
@@ -427,7 +434,7 @@ plot(imp)
 densityplot(imp, ~n_rooms + mq + floor + n_bathrooms + price, lwd = 2)
 ```
 
-To reduce the computation time of the imputation model, we sampled 10000 records from the initial data set. Further, for the scope of this exploratory research, we limited ourselves to simple random sampling and disregarding location and province as predictors. Furthermore, we limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data.
+To reduce the computation time of the imputation model, we sampled 10000 records from the initial dataset. Further, for the scope of this exploratory research, we limited ourselves to simple random sampling and disregarding location and province as predictors. Furthermore, we limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data.
 
 ### Analysis
 
@@ -454,7 +461,7 @@ scope <- list(upper = ~ region + n_rooms + floor + mq + n_bathrooms +
    has_elevator + is_furnished + property_age,
               lower = ~ 1)
 
-# apply a forward selection method to each imputed data set
+# apply a forward selection method to each imputed dataset
 expr <- expression(f1 <- lm(price ~ 1),
                    f2 <- step(f1, scope = scope))
 fit <- with(imp, expr)
@@ -465,7 +472,7 @@ terms <- lapply(formulas, terms)
 votes <- unlist(lapply(terms, labels))
 table(votes)
 
-# model based on forward selection method applied to each imputed data set
+# model based on forward selection method applied to each imputed dataset
 model_2 <- with(imp, lm(price ~ energy_class + floor + has_alarm + has_elevator + 
    has_garden + has_pool + has_terrace + heating + mq + n_bathrooms + 
    n_rooms + property_age + region))
@@ -489,14 +496,19 @@ sum(model_1_bic < model_2_bic)
 model_2_bic - model_1_bic
 ```
 
-To compare the models we used the BIC for each imputed data set. For all imputed data sets, the BIC favors model 1 over model 2. For all comparisons, the absolute difference in BIC score is at least 10 points. So, according to the BIC model 1 is preferred. This is congruent with the coefficient of determination results, considering adding three predictors: floor, property age, garden, did not yield a higher r-squared value. 
+To compare the models we used the BIC for each imputed dataset. For all imputed datasets, the BIC favors model 1 over model 2. For all comparisons, the absolute difference in BIC score is at least 10 points. So, according to the BIC model 1 is preferred. This is congruent with the coefficient of determination results, considering adding three predictors: floor, property age, garden, did not yield a higher r-squared value. 
 
 ### Conclusion
+The following 10 variables were identified to be good predictors of *house price* in Italy in the present dataset: region, number of rooms, squared meters, number of bathrooms, energy class, type of home heating system, and whether the home has a terrace, alarm, pool or elevator.
+With the help of the prediction model 40\% of the variability observed in the house price can be explained.
 
+Consequently, the presence of a balcony, air conditioning, parking, or fireplace seem not to be as informative for the housing price which some people might assume. 
 
 
 # Overall Conclusion
+All things considered, we found a trend in the median price from more expensive to cheaper when going from North to South. We have also shown that these higher medians on a regional level are mostly caused by a higher median on the province level and that in such regions where there is one province with a higher median of *house price*, the MAD is consequently higher too. 
 
+Furthermore, we identified that there is quite some missingness present - especially for *house price* for which about 18\% of values are missing. We were successful in imputing those and the values of the other variables for a randomized subset of the dataset and used that dataset to identify the best set of predictors for *housing price*. The identified predictors were: region, number of rooms, squared meters, number of bathrooms, energy class, type of home heating system, and whether the home has a terrace, alarm, pool or elevator and the corresponding model explained about 40\% in observed variance in *house price*.
 
 
 # Appendix \label{ref:appendix}
