@@ -309,7 +309,88 @@ ggarrange(p1, p2,
 With the help of those plots, it can be seen that the high median of the *Trentino-Alto Adige* region is mainly due to the high median of 400 000€ in the province of *Bolzano*. As the other provinces in that region have lower median prices, the MAD in that region is comparably high. 
 The opposite is the case within the Southern regions, here, the provinces that make up the region of *Calabria* for example, all have a low median price. Hence, the MAD for that region is low. 
 
+**Price difference between high- and low-median groups**
+We can show facet_wrap...
+```{r groupdiff}
+top2_med <- price_by_reg %>% slice_max(median, n = 2) %>% pull(region)
+bottom2_med <- price_by_reg %>% slice_min(median, n = 2) %>% pull(region)
+groups <- list(top2_med = top2_med, bottom2_med = bottom2_med)
+
+p3 <- cleaned_housing %>% 
+  filter(region %in% top2_med) %>% 
+  ggplot(aes(x = price, group = region)) +
+  geom_histogram() +
+  facet_wrap(~region)
+
+p4 <- cleaned_housing %>% 
+  filter(region %in% bottom2_med) %>% 
+  ggplot(aes(x = price, group = region)) +
+  geom_histogram() +
+  facet_wrap(~region)
+
+ggarrange(p3, p4, nrow=2)
+```
+
 ## Question 2: Correlation Between Missingness of Price and Other Variables \label{ref:missingness}
+
+```{r}
+# create missingness indicator of price
+cleaned_housing %>%
+  mutate(na_ind = ifelse(is.na(price), 1, 0)) %>% 
+  ungroup() %>% 
+  summarize(across(n_rooms:property_age, ~cor(as.numeric(.x), na_ind, use = "pairwise.complete.obs"))) %>% t(.) %>%  .[order(abs(.)),]
+```
+
+- `energy_class`(cor = 0.271): a lot of missing values in class `a`, `a1`, `g` .. what does that mean?
+- `has_garden` (cor = -0.114) : lots of houses without a garden are missing.
+- `heating` (cor = 0.109): lots of houses with autonomous heating are missing.
+- `has_garage` (cor = -0.097) : lots of houses without a garage are missing.
+- `has_fireplace` (cor = -0.087) : lots of houses without a fireplace are missing.
+- `has_air_conditioning` (cor = -0.086) : lots of houses without AC are missing.
+```{r corrplots, collapse=TRUE}
+# add price missingness indicator
+house_naind <- cleaned_housing %>%
+  mutate(na_ind = ifelse(is.na(price), 1, 0)) 
+
+## create plots for each of the correlated vars
+  
+# energy_class (cor = 0.27 the highest)
+house_naind %>%
+  ggplot(aes(x=energy_class, y = na_ind)) +
+  geom_col() + theme_minimal()
+
+
+plot_list <- list()
+
+plot_list <- map2(
+  c("has_garden", "heating", "has_garage", "has_fireplace", "has_air_conditioning"),
+  c("garden", "heating", "garage", "fireplace", "AC"),
+  function(var, lab) {
+    ggplot(house_naind, aes(x = .data[[var]], y = na_ind)) + 
+      geom_col() + 
+      theme_minimal() + 
+      labs(x = lab, y = "") 
+     }
+  )
+ggarrange(plotlist = plot_list, nrow = 1, ncol = 5)
+```
+
+```{r, fig.cap = "Missingness of Price per Region"}
+## check missingness w.r.t regions
+cleaned_housing %>% 
+   mutate(na_ind = ifelse(is.na(price), 1, 0)) %>%
+   group_by(region) %>%
+   summarize(total_missing = sum(na_ind) / n()) %>%
+   left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% 
+   st_as_sf() %>%
+   ggplot() +
+      geom_sf(fill=NA) +
+      geom_point(color = "coral1",
+      aes(size = total_missing, geometry = geometry),
+      stat = "sf_coordinates") +
+      theme_void() + 
+      theme(legend.position = "bottom")
+```
 
 Ultimately, we are interested in which variables can predict house prices. However, from an initial inspection, it became clear that some potential predictors contain missing values. Additionally, the outcome itself includes missing values. 
 
