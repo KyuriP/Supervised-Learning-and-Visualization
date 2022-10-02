@@ -76,8 +76,8 @@ td {  /* Table  */
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE,
-               warning = FALSE,
-               comment = NA)
+   warning = FALSE,
+   comment = NA)
 ```
 
 # Introduction
@@ -135,26 +135,28 @@ In order to start our exploratory analysis, we first load relevant packages and 
 
 ```{r libraries+datasets, results='hide'}
 ## load packages
-library(tidyverse) # for wrangling data
-library(magrittr) # for using pipes
-library(skimr) # for skimming data 
-library(sf) # for spatial analysis
-library(sp) # for spatial analysis
-library(ggplot2) # for plotting
-library(fuzzyjoin) # for joining on not-exact matches
-library(ggpubr) # for arranging ggplots
+library(tidyverse)   # for wrangling data
+library(magrittr)    # for using pipes
+library(skimr)       # for skimming data 
+library(sf)          # for spatial analysis
+library(sp)          # for spatial analysis
+library(ggplot2)     # for plotting
+library(fuzzyjoin)   # for joining on not-exact matches
+library(ggpubr)      # for arranging ggplots
+library(mice)        # for imputation procedure
 
-## import Italy housing data
-housing <- read.csv("data/housing_data_italy_august2022.csv", 
+## import italy housing data
+houses <- read.csv("data/housing_data_italy_august2022.csv", 
                     na.strings=c("","NA"), header = TRUE)
-## import ISTAT shape files
+
+## import istat shape files
 # municipality
-muni_2022 <- st_read("data/italy_shape_2022_files/Com01012022_g")[c("COD_REG",
-                                                                    "COD_PROV", "COMUNE")]  
+municipalities <- st_read("data/italy_shape_2022_files/Com01012022_g")
+municipalities <- municipalities[c("COD_REG", "COD_PROV", "COMUNE")]  
 # province
-prov_2022 <- st_read("data/italy_shape_2022_files/ProvCM01012022_g") 
+provinces <- st_read("data/italy_shape_2022_files/ProvCM01012022_g") 
 # region
-reg_2022 <- st_read("data/italy_shape_2022_files/Reg01012022_g")
+regions <- st_read("data/italy_shape_2022_files/Reg01012022_g")
 ```
 
 # Exploratory Research Analyses
@@ -179,44 +181,44 @@ The variable of our main interest `price` is highly skewed to the right given th
 
 ```{r figure1, out.width="70%", fig.align='center', fig.show='hold',fig.cap="Boxplot of Housing Prices in Italy"}
 ## create our own theme that can be used throughout
-My_theme = theme(
+custom.theme = theme(
   axis.title.x = element_text(size = 16),
   axis.text.x = element_text(size = 15),
   axis.title.y = element_text(size = 16),
   axis.text.y = element_text(size = 15))
 
 ## boxplot of price
-housing %>% 
-ggplot(aes(x=price)) +
-  geom_boxplot() + theme_minimal() +
-  # add comma on the x-axis labels
-  scale_x_continuous(labels=scales::label_comma(), 
-                     # rotate the x-axis labels
-                     guide = guide_axis(angle = 25)) +
-  # apply our own theme specified above
-  My_theme
+houses %>% 
+   ggplot(aes(x=price)) +
+   geom_boxplot() + 
+   # add comma on the x-axis labels
+   scale_x_continuous(labels=scales::label_comma(), 
+   # rotate the x-axis labels
+   guide = guide_axis(angle = 25)) +
+   # apply minimal theme plus our own theme
+   theme_minimal() + custom.theme
 ```
 From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M, which are more likely to be affordable to an average Italian. The distribution of housing prices after filtering can be seen in *Figure 2*.
 
 ```{r figure2, out.width="70%", fig.align='center',fig.show='hold', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
 ## density plot of price (cleaned dataset)
-housing %>% 
+houses %>% 
   # filter the price over a million
   filter(price <= 1e6 | is.na(price)) %>% 
   # create a ggplot
   ggplot(aes(price)) + 
   # add histogram 
-  geom_histogram(aes(y=..density..), color = 1, fill="white") + 
+  geom_histogram(aes(y=..density..), bins = 30, color = 1, fill="white") + 
   # add density line
   geom_density(lwd=0.5, color = 4, fill = 4, alpha = 0.2) + 
   # apply our theme
-  theme_minimal() + My_theme
+  theme_minimal() + custom.theme
 ```
 From *Figure 2*, we take that the distribution of housing prices after filtering appears a lot more ordinary. There is still a long right tail, but that is to be expected with housing prices in any country. The extreme outliers have been eliminated. From this plot, we also conclude that when working with housing price data, it is likely to be more informative to use centrality and spread measures that are robust to skewed data. For this reason, we will use the *median* and *median absolute deviation (MAD)* instead of the mean and variance in our exploration of the present dataset. 
 
 ```{r data_cleaning}
 ## cleaning up the housing data
-cleaned_housing <- housing %>% 
+houses.cleaned <- houses %>% 
   # only select variables that have more than one unique value
   select(where(~n_distinct(.) > 1)) %>% 
   # fix the data type (convert them to factor)
@@ -224,8 +226,7 @@ cleaned_housing <- housing %>%
                   n_bathrooms, location), factor)) %>%
   # filter out houses whose price is over a million (while keeping NAs)
   filter(price <= 1e6 | is.na(price), 
-  # filter out houses whose construction year is more than 4 years later 
-  # as of today (while keeping NAs)
+  # filter out houses with a built year over 2026 (while keeping NAs)
          year_of_construction < 2026 | is.na(year_of_construction)) %>% 
   # create property age variable
   mutate(property_age = 2022 - as.numeric(year_of_construction)) %>% 
@@ -242,14 +243,13 @@ We skim through our cleaned dataset using the `skimr` package.
 # settings: round up by 2 decimal places & disable scientific notation
 options(digits = 3, scipen = 999) 
 # specify skimming function
-my_skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
-                     factor = sfl(ordered = NULL),
-                     numeric = sfl(p0 = NULL, p25=NULL, p50=NULL, p75=NULL,
-                                   p100=NULL, hist=NULL, median = ~median(., na.rm=T), 
-                                   min = ~min(., na.rm=T), max = ~max(., na.rm=T), 
-                                   n_unique=n_unique))
+custom.skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
+   factor = sfl(ordered = NULL),
+   numeric = sfl(p0 = NULL, p25=NULL, p50=NULL, p75=NULL, p100=NULL, hist=NULL, 
+                 median = ~median(., na.rm=T), 
+                 min = ~min(., na.rm=T), max = ~max(., na.rm=T), n_unique=n_unique))
 # summary table
-my_skim(cleaned_housing) 
+custom.skim(houses.cleaned) 
 ```
 
 From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types. The output is presented in two tables for factor and numeric variables, separately. 
@@ -275,34 +275,53 @@ This is particularly useful for creating map plots using `ggplot2`.
 Each sale in our dataset is assigned to one of 7023 municipalities. In order to create plots which visualize the differences in average housing prices across Italy, we assign each municipality to its corresponding province and region. We use the data from *ISTAT* to append the province and region information to every observed municipality in our dataset. 
 We use fuzzy matching for inexact matches as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the ISTAT shape files. The result of the following chunk of code is that all the municipalities are assigned their regions and provinces.
 
-```{r prepgeo, cache=TRUE}
-cleaned_housing <- stringdist_left_join(cleaned_housing, muni_2022,by = 
-                                          c("location" = "COMUNE"), 
-                                        distance_col = "distance", ignore_case = T)%>% 
-  group_by(location) %>% slice_min(distance) %>%
-  select(-geometry,-distance) %>% 
-  left_join(., as.data.frame(reg_2022[,c("COD_REG","DEN_REG")])) %>% 
-  select(-geometry, -COMUNE) %>% 
-  left_join(., as.data.frame(prov_2022[,c("DEN_UTS", "COD_PROV")], by = "COD_PROV"))%>% 
-  select(-geometry, -COD_REG, -COD_PROV) %>% 
-  rename(., "region" = "DEN_REG", "province" = "DEN_UTS") %>% 
-  relocate(c(region, province), .after=location)
+```{r eval=FALSE, include=FALSE}
+# create predictor matrix
+predictors <- houses.cleaned %>% ungroup() %>% quickpred()
+
+# multiple imputation procedure (m = 5)
+imputations <- mice(houses.cleaned, m = 5, seed = 1, predictorMatrix = predictors)
+```
+
+```{r}
+## load imputation results
+imputations <- readRDS("data/imputation.rds")
+```
+
+```{r prepgeo, eval=FALSE, cache=TRUE, include=FALSE}
+## function to join geospatial data 
+join.geo <- function(data) {
+   data.geo <- stringdist_left_join(data, municipalities, 
+         by = c("location" = "COMUNE"), distance_col = "distance", 
+         ignore_case = TRUE) %>% 
+      group_by(location) %>% 
+      slice_min(distance) %>%
+      select(-geometry,-distance) %>% 
+      left_join(., as.data.frame(regions[,c("COD_REG","DEN_REG")])) %>% 
+      select(-geometry, -COMUNE) %>% 
+      left_join(., as.data.frame(provinces[,c("DEN_UTS", "COD_PROV")], 
+         by = "COD_PROV")) %>%
+      rename(region = DEN_REG, province = DEN_UTS) %>%
+      select(-geometry, -COD_REG, -COD_PROV) %>%
+      relocate(c(region, province), .after = location) 
+}
+
+# join geospatial data to the imputed data
+imputed <- lapply(complete(imputations, "all"), join.geo)
+
+# join geospatial data to the cleaned house data
+houses.cleaned <- join.geo(houses.cleaned)
+```
+
+```{r}
+# load the imputed data including the geospatial data
+imputed <- readRDS("data/imputed.rds")
+
+# load the cleaned house data including the geospatial data
+houses.cleaned <- readRDS("data/housescleaned.rds")
 ```
 
 To answer our first research question, we aggregate our data on two levels: 1) regional and 2) provincial level by computing two aggregated statistics: 1) the median housing price and 2) the median absolute deviation (MAD) in housing price on the two respective levels. This yields two sub-datasets, one per each level. To each, we attach geometric information needed for geographic plotting and convert it to an `sf` object which is a requirement for plotting maps.
-
-```{r price_by_reg}
-price_by_reg <- cleaned_housing %>% group_by(region) %>% 
-  summarize(median = median(price, na.rm=T), mad = mad(price,na.rm=T)) %>% 
-  left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% st_as_sf()
-```
-
-```{r price_by_prov}
-price_by_prov <- cleaned_housing %>% group_by(province) %>% 
-  summarize(mean = mean(price, na.rm=T), median = median(price, na.rm=T), 
-            variance = var(price, na.rm=T), mad = mad(price, na.rm=T)) %>% 
-  left_join(.,prov_2022, by = c("province" = "DEN_PROV")) %>% st_as_sf()
-```
 
 Having done this, we are ready to explore the missingness in the dataset.
 
@@ -310,7 +329,7 @@ First, we do so by calculating and plotting the proportion of missing values for
 
 ```{r missingness, out.width="70%", fig.align='center', fig.cap="Distribution of housing price"}
 # barplot to show the missingness per variable
-cleaned_housing %>%
+houses.cleaned %>%
    is.na() %>% colMeans() %>% stack() %>% 
    ggplot(aes(x = reorder(ind, values), y=values)) +
    geom_bar(stat="identity", width = .2, fill = "black") + 
@@ -323,7 +342,7 @@ The plot shows that the percentage of missing values lies above 30\% for the var
 
 In the following, we explore the correlation of *price* and the other variables and summarize the findings in *Table XX*.
 ```{r}
-cleaned_housing %>%
+houses.cleaned %>%
   # create missingness indicator of price
   mutate(na_ind = ifelse(is.na(price), 1, 0)) %>% 
   ungroup() %>% 
@@ -336,11 +355,12 @@ cleaned_housing %>%
   knitr::kable(col.names = "correlation", caption = "Correlation between missingness 
                of price and other variables", align="c")
 ```
+
 The missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we further check what the pattern of missingness in price across different energy class looks like.
 
 ```{r corrplots, fig.cap = "Missing values in price across different energy classes", out.width="70%", fig.align='center'}
 ## create plots for missingness in price vs energy class
-cleaned_housing %>%
+houses.cleaned %>%
   # add price missingness indicator
   mutate(na_ind = ifelse(is.na(price), 1, 0)) %>% 
   # group by energy class
@@ -350,34 +370,35 @@ cleaned_housing %>%
   # create a ggplot for the sum of missingness
   ggplot(aes(x = energy_class, y = n)) +
   # apply our theme to the bar plot
-  geom_col() + theme_minimal() + My_theme +
+  geom_col() + theme_minimal() + custom.theme +
   # change the labels
   labs(x = "Energy Class", y = "Missingness in price")
 ```
 *Figure XX* shows that there is higher missingness in price for houses that either have a good energy class of *a* or *a1*, or fall into the very inefficient energy class *g*. There is low missingness in *price* for the other energy classes and for houses for which *price* is missing. 
 
 We also check the missingness in price across different regions to see if there are any patterns.
+
 ```{r, fig.cap = "Missingness of Price per Region", out.width="80%", fig.align='center'}
 ## check missingness in price w.r.t regions
-cleaned_housing %>% 
-  # add price missingness indicator
+houses.cleaned %>% 
+   # add price missingness indicator
    mutate(na_ind = ifelse(is.na(price), 1, 0)) %>%
    group_by(region) %>%
-  # get the total missingness proportion per region
+   # get the total missingness proportion per region
    summarize(total_missing = sum(na_ind) / n()) %>%
-  # add the spatial data
-   left_join(.,reg_2022, by = c("region" = "DEN_REG")) %>% 
+   # add the spatial data
+   left_join(., regions, by = c("region" = "DEN_REG")) %>% 
    st_as_sf() %>%
    ggplot() +
-  # plot the italy map
-      geom_sf(fill=NA) +
+   # plot the italy map
+   geom_sf(fill=NA) +
   # add scatter plots of missingness proportion per region
-      geom_point(color = "coral1",
-      aes(size = total_missing, geometry = geometry),
-      stat = "sf_coordinates") +
+   geom_point(color = "coral1",
+   aes(size = total_missing, geometry = geometry),
+   stat = "sf_coordinates") +
   # remove unnecessary coordinates
-      theme_void() + 
-      theme(legend.position = "bottom")
+   theme_void() + 
+   theme(legend.position = "bottom")
 ```
 
 *Figure 7* shows that the proportion of missing data in `price` is not equal across different regions. 
@@ -385,10 +406,11 @@ cleaned_housing %>%
 <!-- Therefore, we explored if the missingness of the predictors and the outcome variable *house prices* are related. First, we investigated the correlation between the missingness indicator for *price* and the predictors. Second, we visually examined the relationship between the predictors' missingness indicators and the *price* densities. Lastly, we visually inspected the percentage of missingness per region.   -->
 
 Next, we examine the relationship between the predictors' missingness indicators and the *price* densities by plotting the density of price (on a log10-scale) split by whether or not the respective value for a given variable is missing or not. These results provide us with some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not.
+
 ```{r missingness_density, warning=FALSE, out.width="70%", fig.align='center', fig.caption = "Density Plots for Price based on the Missing Indicator for A) Floor B) No. of Rooms C) No. of Bathrooms D) Square Metres"}
-# function to create a density plot of price with missing indicator
-missing_plots <- function(x) {
-   plot <- cleaned_housing %>% ungroup() %>%
+## function to create a density plot of price with missing indicator
+missing.plots <- function(x) {
+   plot <- houses.cleaned %>% ungroup() %>%
       mutate(missing = is.na(.[,x])) %>%
       ggplot(aes(x = log10(price), fill = missing)) + 
       geom_density(alpha = 0.5, color = NA) + 
@@ -400,11 +422,11 @@ missing_plots <- function(x) {
 }
 
 # multiple plots for floor, no. of rooms, no. of bathrooms, and meters squared
-ggarrange(missing_plots("floor"), 
-          missing_plots("n_rooms"),
-          missing_plots("n_bathrooms"),
-          missing_plots("mq"),
-          labels = c("A Floor", "B # rooms", "C # bathrooms", "D $m^2$"),
+ggarrange(missing.plots("floor"), 
+          missing.plots("n_rooms"),
+          missing.plots("n_bathrooms"),
+          missing.plots("mq"),
+          #labels = c("A Floor", "B # rooms", "C # bathrooms", "D $m^2$"),
           ncol = 2, nrow = 2)
 ```
 
@@ -416,32 +438,6 @@ We explored if the missingness of the predictors and the outcome variable *house
 
 ### Imputation
 
-```{r}
-# fix seed for reproducibility
-set.seed(1)
-
-# reduced dataset 
-housing_sampled <- cleaned_housing %>% 
-   # ungroup on location
-   ungroup() %>%
-   # sample 10000 records
-   sample_n(10000) %>%
-   # ignore location, and province information
-   select(-location, -province)
-```
-
-```{r eval=TRUE, include=FALSE}
-library(mice)
-
-# create predictor matrix
-pred <- housing_sampled %>% quickpred()
-
-# multiple imputation procedure (m = 5)
-imp <- mice(housing_sampled, m = 5, seed = 1, predictorMatrix = pred, print = TRUE)
-```
-
-
-
 Furthermore, we limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data (see Appendix).
 
 
@@ -449,50 +445,94 @@ Furthermore, we limited the diagnostics for the imputation procedure to the conv
 
 ## Question 2: Regional and Provincial Trends in the Median Housing Price and the Median Absolute Deviations in Italy
 We use the imputed dataset to explore whether there is a geographical trend in the median and the median absolute deviation (MAD) *housing price* on a regional or provincial level. In order to do so, we plot the median and the MAD on the regional and the provincial level:
-```{r median_mad_region}
-plot_list1 <- list()
-## median & mad of price per region 
-plot_list1 <- map(
-  c("median", "mad"),
-  function(var) {
-    ggplot(price_by_reg) +       
-      # map each statistic
-      geom_sf(aes(fill = .data[[var]])) +
-      # void theme: remove all unncessary coordinates
-      theme_void() +
-      # color-scheme (color-blind friendly???)
-      scale_fill_viridis_c(option = "E", direction = -1) +
-      # lengthen the legend
-      theme(legend.key.width= unit(2, 'cm'))
-     }
-  )
-plot_list2 <- list()
-## median & mad of price per province 
-plot_list2 <- map(
-  c("median", "mad"),
-  function(var) {
-    ggplot(price_by_prov) +
-      # map each statistic
-      geom_sf(aes(fill = .data[[var]])) +
-      # void theme: remove all unncessary coordinates
-      theme_void() +
-      # color-scheme (color-blind friendly???)
-      scale_fill_viridis_c(option = "E", direction = -1) +
-      # lengthen the legend
-      theme(legend.key.width= unit(2, 'cm'))
-     }
-  )
-# combine the plot lists
-plot_list <- c(plot_list1, plot_list2)
+
+```{r}
+## function to get aggregated region price information 
+group.region <- function(data, estimate) {
+   data %>% 
+      group_by(region) %>%
+      summarize(estimate = ifelse(estimate, median(price), mad(price))) %>%
+      select(-region)
+}
+
+region.median <- lapply(imputed, group.region, estimate = T) %>% 
+   do.call(cbind, .) %>% rowMeans() 
+region.mad <- lapply(imputed, group.region, estimate = F) %>% 
+   do.call(cbind, .) %>% rowMeans() 
+
+price.by.region <- data.frame(region = sort(regions$DEN_REG), 
+   median = region.median, mad = region.mad) %>% 
+   left_join(.,regions, by = c("region" = "DEN_REG")) %>% st_as_sf()
 ```
+
+```{r}
+## function to get aggregated province price information
+group.province <- function(data, estimate) {
+   data %>% 
+      group_by(province) %>%
+      summarize(estimate = ifelse(estimate, median(price), mad(price))) %>%
+      select(-province)
+}
+
+province.median <- lapply(imputed, group.province, estimate = T) %>% 
+   do.call(cbind, .) %>% rowMeans() 
+province.mad <- lapply(imputed, group.province, estimate = F) %>% 
+   do.call(cbind, .) %>% rowMeans() 
+
+price.by.province <- data.frame(province = sort(provinces$DEN_UTS), 
+   median = province.median, mad = province.mad) %>% 
+   left_join(., provinces, by = c("province" = "DEN_PROV")) %>% st_as_sf()
+```
+
+```{r median_mad_region}
+plot.list.1 <- list()
+
+## median & mad of price per region 
+plot.list.1 <- map(
+  c("median", "mad"),
+  function(var) {
+    ggplot(price.by.region) +       
+      # map each statistic
+      geom_sf(aes(fill = .data[[var]])) +
+      # void theme: remove all unncessary coordinates
+      theme_void() +
+      # color-scheme (color-blind friendly???)
+      scale_fill_viridis_c(option = "E", direction = -1) +
+      # lengthen the legend
+      theme(legend.key.width= unit(2, 'cm'))
+     }
+  )
+plot.list.2 <- list()
+
+## median & mad of price per province 
+plot.list.2 <- map(
+  c("median", "mad"),
+  function(var) {
+    ggplot(price.by.province) +
+      # map each statistic
+      geom_sf(aes(fill = .data[[var]])) +
+      # void theme: remove all unncessary coordinates
+      theme_void() +
+      # color-scheme (color-blind friendly???)
+      scale_fill_viridis_c(option = "E", direction = -1) +
+      # lengthen the legend
+      theme(legend.key.width= unit(2, 'cm'))
+     }
+  )
+
+# combine the plot lists
+plot.list <- c(plot.list.1, plot.list.2)
+```
+
 ```{r fig.cap="Median of Price per Region (left) and Province (right)", out.width="80%", fig.align='center'}
 ## plot the median of price
-ggarrange(plotlist = plot_list[c(1,3)], nrow = 1, ncol = 2, common.legend = TRUE, 
+ggarrange(plotlist = plot.list[c(1,3)], nrow = 1, ncol = 2, common.legend = TRUE, 
           legend = "bottom")
 ```
+
 ```{r fig.cap="MAD of Price per Region (left) and Province (right)", out.width="80%", fig.align='center'}
 ## plot the mad of price
-ggarrange(plotlist = plot_list[c(2,4)], nrow = 1, ncol = 2, common.legend = TRUE, 
+ggarrange(plotlist = plot.list[c(2,4)], nrow = 1, ncol = 2, common.legend = TRUE, 
           legend = "bottom")
 ```
 
@@ -505,23 +545,24 @@ The opposite is the case within the Southern regions, here, the provinces that m
 Given that the overall geographical pattern for median and MAD of `price` correspond to each other, it is interesting to investigate further the possible differences in the distribution of `price` between high- and low-median regions.
 ```{r groupdiff, fig.cap="group differences in price distribution"}
 # top 2 high median regions
-top2_med <- price_by_reg %>% slice_max(median, n = 2) %>% pull(region)
-# bottom 2 low median regions
-bottom2_med <- price_by_reg %>% slice_min(median, n = 2) %>% pull(region)
+top.2.median <- price.by.region %>% slice_max(median, n = 2) %>% pull(region)
+
+# lowest 2 low median regions
+lowest.2.median <- price.by.region %>% slice_min(median, n = 2) %>% pull(region)
 
 # plot the histograms for each region in the high and low median groups
-cleaned_housing %>% 
+imputed[[1]] %>% 
   # subset top two and bottom two countries
-  filter(region %in% c(top2_med, bottom2_med)) %>%
+  filter(region %in% c(top.2.median, lowest.2.median)) %>%
   # group by the regions
   group_by(region) %>%  
   # create the grouping variable for coloring 
-  mutate(grouping = ifelse(region %in% top2_med, "high median", "low median"),
+  mutate(grouping = ifelse(region %in% top.2.median, "high median", "low median"),
          # get the median price for each region
          med_price = median(price, na.rm=T)) %>% 
   # create ggplot for price (coloring by groups)
   ggplot(aes(x = price, fill = grouping)) +
-  geom_histogram() +
+  geom_histogram(bins = 30) +
   # create a panel of plots per region
   theme_bw() + facet_wrap(~region) +
   # indicate the median price by a vertical line
@@ -539,105 +580,19 @@ An interesting take-away from this figure is that all the densities for the *hou
 All things considered, we identified that there is quite some missingness present - especially for *house price* for which about 18\% of values are missing. We were successful in imputing those and the values of the other variables.
 Using the imputed dataset, we found a trend in the median price from more expensive to cheaper when going from Northern to Southern in Italy. We also have shown that these higher medians on a regional level are due to a higher median on the province level and that in such regions where there is one province with a higher median of *house price*, the MAD is consequently higher too if the other provinces in that region do not have a high median, too. 
 
-
-<!--  ## Question 3: What are the most important predicotrs of housing price in Italy?
-
-Ultimately, we are interested in which variables can predict house prices. However, from an initial inspection, it became clear that some potential predictors contain missing values. Additionally, the outcome `price` itself includes missing values. 
-***SO WE WILL FIRST check the missingness mechanism -> DO IMPUTATION  -> AND THEN BUILD A PREDICTION MODEL BASED ON THE IMPUTATION DATA SET*** 
-
-
-
-
-
-
-
-
-### Prediction model
-
-As mentioned in the previous section, we will handle the missing data using a multiple imputation procedure. Subsequently, we are interested to find out which variables can predict house prices. For this purpose, we used two step-wise modeling strategies. The first strategy consists of a backward selection method based on the pooled estimates. The second strategy is a forward selection method applied to each imputed dataset ($m=5$) and variables are selected in the final that appear the majority of the models. The models will be compared based on their included predictors, pooled coefficient of determination, and Bayesian information criterion (BIC).
-
-```{r, eval=TRUE, include=FALSE}
-# model based on backward selection method based on the pooled estimates
-model_1 <- with(imp, lm(price ~ region + n_rooms + mq + n_bathrooms +
-   energy_class + heating + has_terrace + has_alarm +
-   has_pool + has_elevator))
-
-# pooled effect estimates 
-summary(pool(model_1)) 
-
-# pooled r-squared estimate 
-pool.r.squared(model_1)
-```
-
-The model based on backward selection method based on the pooled estimates contains 10 predictors: region, number of rooms, squared meters, number of bathrooms, energy class, type of home heating system, and the home including a terrace, alarm, pool, or elevator. The predictors in the model explain 40 percent of the variability observed in the house price.
-
-```{r, results='hide', cache=TRUE}
-# define the scope of which predictors
-scope <- list(upper = ~ region + n_rooms + floor + mq + n_bathrooms + 
-   energy_class + heating + has_garage + has_terrace + has_garden + has_balcony + 
-   has_fireplace + has_alarm + has_air_conditioning + has_pool + has_parking + 
-   has_elevator + is_furnished + property_age,
-              lower = ~ 1)
-
-# apply a forward selection method to each imputed dataset
-expr <- expression(f1 <- lm(price ~ 1),
-                   f2 <- step(f1, scope = scope))
-fit <- with(imp, expr)
-
-# majority vote which predictors to include
-formulas <- lapply(fit$analyses, formula)
-terms <- lapply(formulas, terms)
-votes <- unlist(lapply(terms, labels))
-table(votes)
-
-# model based on forward selection method applied to each imputed dataset
-model_2 <- with(imp, lm(price ~ energy_class + floor + has_alarm + has_elevator + 
-   has_garden + has_pool + has_terrace + heating + mq + n_bathrooms + 
-   n_rooms + property_age + region))
-
-# pooled effect estimates 
-summary(pool(model_2))
-
-# pooled r-squared estimate 
-pool.r.squared(model_2, adjusted = TRUE)
-```
-
-The model based on backward selection method based on the pooled estimates contains 13 predictors: region, number of rooms, number of floor, squared meters, number of bathrooms, energy class, type of home heating system, property age and the home including a elevator, alarm, garden, pool, or terrace. The predictors in the model explain 40 percent of the variability observed in the house price. The code for the second model is reused from Gerko Vinks' mice vignettes, which are [publicly available]("https://www.gerkovink.com/miceVignettes/").
-
-```{r, cache=TRUE}
-# derive the BIC value for each model
-model_1_bic <- model_1$analyses %>% sapply(BIC)
-model_2_bic <- model_2$analyses %>% sapply(BIC)
-
-# compare the BIC value
-sum(model_1_bic < model_2_bic)
-model_2_bic - model_1_bic
-```
-
-To compare the models we used the BIC for each imputed dataset. For all imputed datasets, the BIC favors model 1 over model 2. For all comparisons, the absolute difference in BIC score is at least 10 points. So, according to the BIC model 1 is preferred. This is congruent with the coefficient of determination results, considering adding three predictors: floor, property age, garden, did not yield a higher r-squared value. 
-
-### Conclusion
-The following 10 variables were identified to be good predictors of *house price* in Italy in the present dataset: region, number of rooms, squared meters, number of bathrooms, energy class, type of home heating system, and whether the home has a terrace, alarm, pool or elevator.
-With the help of the prediction model 40\% of the variability observed in the house price can be explained.
-
-Consequently, the presence of a balcony, air conditioning, parking, or fireplace seem not to be as informative for the housing price which some people might assume. 
-
--->
-
-
-
 # Appendix \label{ref:appendix}
 
 ## Summary of the raw data using the my_skim function.
+
 ```{r}
-my_skim(housing)
+custom.skim(houses)
 ```
 
 ## Convergence of the algorithm and plausability of the imputed dataset
 ```{r}
 # convergence of the algorithm
-plot(imp)
+plot(imputations)
 
 # plausibility of the imputed data
-densityplot(imp, ~n_rooms + mq + floor + n_bathrooms + price, lwd = 2)
+densityplot(imputations, ~n_rooms + mq + floor + n_bathrooms + price, lwd = 2)
 ```
