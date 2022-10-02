@@ -75,6 +75,7 @@ td {  /* Table  */
 <hr>
 
 ```{r setup, include=FALSE}
+options(warn = -1) # suppress ggplot warnings
 knitr::opts_chunk$set(message = FALSE,
    warning = FALSE,
    comment = NA)
@@ -182,10 +183,10 @@ The variable of our main interest `price` is highly skewed to the right given th
 ```{r figure1, out.width="70%", fig.align='center', fig.show='hold',fig.cap="Boxplot of Housing Prices in Italy"}
 ## create our own theme that can be used throughout
 custom.theme = theme(
-  axis.title.x = element_text(size = 16),
-  axis.text.x = element_text(size = 15),
-  axis.title.y = element_text(size = 16),
-  axis.text.y = element_text(size = 15))
+  axis.title.x = element_text(size = 14),
+  axis.text.x = element_text(size = 13),
+  axis.title.y = element_text(size = 14),
+  axis.text.y = element_text(size = 13))
 
 ## boxplot of price
 houses %>% 
@@ -210,7 +211,7 @@ houses %>%
   # add histogram 
   geom_histogram(aes(y=..density..), bins = 30, color = 1, fill="white") + 
   # add density line
-  geom_density(lwd=0.5, color = 4, fill = 4, alpha = 0.2) + 
+  geom_density(lwd=0.5, color = "#165e70", fill = "#165e70", alpha = 0.2) + 
   # apply our theme
   theme_minimal() + custom.theme
 ```
@@ -327,17 +328,24 @@ Having done this, we are ready to explore the missingness in the dataset.
 
 First, we do so by calculating and plotting the proportion of missing values for all the variables in Figure \@ref(fig:missingness). 
 
-```{r missingness, out.width="70%", fig.align='center', fig.cap="Distribution of housing price"}
+```{r missingness, fig.cap = "Proportion of Missing Values", fig.width=9, fig.height=5}
 # barplot to show the missingness per variable
 houses.cleaned %>%
+   # get the average missing proportion
    is.na() %>% colMeans() %>% stack() %>% 
+   # create ggplot for the missing proportion
    ggplot(aes(x = reorder(ind, values), y=values)) +
-   geom_bar(stat="identity", width = .2, fill = "black") + 
-   geom_point() +
-   theme_minimal() + 
-   coord_flip() +
-   labs(x = "Variable", y = "Missingness (%)")
+   # specify the bar plot
+   geom_bar(stat="identity", width = .2, fill = "black", 
+            position = position_dodge2(padding = 0.8)) + 
+   # flip the bar plot and add the points
+   geom_point() + coord_flip() + 
+   # apply our custom theme
+   theme_minimal() + custom.theme +
+   # specify axis labels
+   labs(x = "", y = "Missingness (%)") 
 ```
+
 The plot shows that the percentage of missing values lies above 30\% for the variable *floor* and above 25\% for the *number of rooms*. Furthermore, about 18\% of the *housing prices* are missing. Except for the *number of bathrooms* which has about 6\% values missing, for the remaining variables less than 3\% are missing, respectively. 
 
 In the following, we explore the correlation of *price* and the other variables and summarize the findings in *Table XX*.
@@ -356,9 +364,9 @@ houses.cleaned %>%
                of price and other variables", align="c")
 ```
 
-The missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we further check what the pattern of missingness in price across different energy class looks like.
+The missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we further check what the pattern of missingness in price across different energy classes looks like.
 
-```{r corrplots, fig.cap = "Missing values in price across different energy classes", out.width="70%", fig.align='center'}
+```{r corrplots, fig.cap = "Missing Values in Price across Different Energy Classes", out.width="80%", fig.align='center'}
 ## create plots for missingness in price vs energy class
 houses.cleaned %>%
   # add price missingness indicator
@@ -368,9 +376,14 @@ houses.cleaned %>%
   # sum up all the missingness in price per energy class
   summarize(n = sum(na_ind)) %>% 
   # create a ggplot for the sum of missingness
-  ggplot(aes(x = energy_class, y = n)) +
-  # apply our theme to the bar plot
-  geom_col() + theme_minimal() + custom.theme +
+  ggplot(aes(x = energy_class, y = n, fill = energy_class)) +
+  # turn off legend
+  geom_col(show.legend=FALSE) + 
+  # customize the color
+  scale_fill_manual(values = c("#F8766D", "#999999","#F8766D", 
+                                     rep("#999999", 8),"#F8766D")) +
+  # apply the themes to the bar plot
+  theme_minimal() + custom.theme +
   # change the labels
   labs(x = "Energy Class", y = "Missingness in price")
 ```
@@ -385,7 +398,7 @@ houses.cleaned %>%
    mutate(na_ind = ifelse(is.na(price), 1, 0)) %>%
    group_by(region) %>%
    # get the total missingness proportion per region
-   summarize(total_missing = sum(na_ind) / n()) %>%
+   summarize(`Average missing proportion (%)` = sum(na_ind) / n()) %>%
    # add the spatial data
    left_join(., regions, by = c("region" = "DEN_REG")) %>% 
    st_as_sf() %>%
@@ -393,12 +406,13 @@ houses.cleaned %>%
    # plot the italy map
    geom_sf(fill=NA) +
   # add scatter plots of missingness proportion per region
-   geom_point(color = "coral1",
-   aes(size = total_missing, geometry = geometry),
+   geom_point(color = alpha("red", 0.4),
+   aes(size = `Average missing proportion (%)`, geometry = geometry),
    stat = "sf_coordinates") +
   # remove unnecessary coordinates
    theme_void() + 
    theme(legend.position = "bottom")
+  
 ```
 
 *Figure 7* shows that the proportion of missing data in `price` is not equal across different regions. 
@@ -407,17 +421,16 @@ houses.cleaned %>%
 
 Next, we examine the relationship between the predictors' missingness indicators and the *price* densities by plotting the density of price (on a log10-scale) split by whether or not the respective value for a given variable is missing or not. These results provide us with some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not.
 
-```{r missingness_density, warning=FALSE, out.width="70%", fig.align='center', fig.caption = "Density Plots for Price based on the Missing Indicator for A) Floor B) No. of Rooms C) No. of Bathrooms D) Square Metres"}
+```{r missingness_density, fig.cap = "Density Plots for Price based on the Missing Indicators"}
 ## function to create a density plot of price with missing indicator
 missing.plots <- function(x) {
    plot <- houses.cleaned %>% ungroup() %>%
       mutate(missing = is.na(.[,x])) %>%
       ggplot(aes(x = log10(price), fill = missing)) + 
       geom_density(alpha = 0.5, color = NA) + 
-      theme_minimal() + 
-      theme(legend.position = "top") + 
+      theme_classic() + 
       labs(x = expression(paste(Log["10"],"(Price)"), y = "Density")) + 
-      scale_x_continuous(limits = c(2, 7)) 
+      scale_x_continuous(limits = c(2, 7)) + ylim(0, 1.5)
    return(plot)
 }
 
@@ -426,8 +439,9 @@ ggarrange(missing.plots("floor"),
           missing.plots("n_rooms"),
           missing.plots("n_bathrooms"),
           missing.plots("mq"),
-          #labels = c("A Floor", "B # rooms", "C # bathrooms", "D $m^2$"),
-          ncol = 2, nrow = 2)
+          labels = c("         A. Floor", "B. Number of rooms", "C. Number of bathrooms", "D. Squared meter(m2)"),
+                     font.label=list(color="black",size = 10),
+          ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
 ```
 
 The missingness of number of floors (\@ref(fig:missingness_density) A) and number of rooms (\@ref(fig:missingness_density) B) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (\@ref(fig:missingness_density) C) and the meters squared (\@ref(fig:missingness_density) D) missingness shows a different result, namely, missingness tends to occur at higher house prices.
