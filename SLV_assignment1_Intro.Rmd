@@ -168,6 +168,7 @@ The goal of our analysis is:
 
 2. Investigating whether there are any geographical trends in the housing prices on regional and/or provincial level.  
 
+
 # Data Cleaning
 \vspace {-0.3cm}
 ***Note***: We base the following data cleaning on the summary of the raw dataset, which can be found in the *Appendix*.  
@@ -182,7 +183,7 @@ Next, we create a new variable `property_age` by subtracting the `year_of_constr
 
 For the second exploratory research question, our variable of interest is `price`. We notice that it is highly skewed to the right given that the mean (239,939) is far off to the right of the median (135,000). We examine the distribution of `price` with a boxplot (see *Figure 1*). 
 
-```{r figure1, out.width="70%", fig.align='center', fig.show='hold',fig.cap="Boxplot of Housing Prices in Italy"}
+```{r figure1, out.width="70%", fig.align='center',fig.cap="Boxplot of Housing Prices in Italy"}
 ## create our own theme that can be used throughout
 custom.theme = theme(
   axis.title.x = element_text(size = 14),
@@ -201,10 +202,7 @@ houses %>%
    # apply minimal theme plus our own customized theme
    theme_minimal() + custom.theme
 ```
-
-From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M. The distribution of housing prices after filtering can be seen in *Figure 2*.
-
-```{r figure2, out.width="70%", fig.align='center',fig.show='hold', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
+```{r figure2, out.width="70%", fig.align='center', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
 ## density plot of price (cleaned dataset)
 houses %>% 
   # filter the price over a million
@@ -218,6 +216,7 @@ houses %>%
   # apply our theme
   theme_minimal() + custom.theme
 ```
+From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M. The distribution of housing prices after filtering can be seen in *Figure 2*.
 
 As shown in *Figure 2*, the distribution of housing prices still has a long right tail after eliminating extreme outliers, but that is to be expected with housing prices in any country. Based on this, we conclude that when working with this housing price data, it is advisable to use centrality and spread measures that are robust to skewed data. For this reason, we will use *median* and *median absolute deviation (MAD)* instead of the mean and variance in our exploration of the present dataset. 
 
@@ -292,7 +291,7 @@ From the table of factor variables, we again see that `location` has 7023 unique
 
 <!-- The ratio of properties having an alarm is highest (99.10\%) and lowest for having air conditioning (70.24\%).  -->
 
-In the numeric table, we see that all variables except for the property age have some missing values. About 18\% of `price`, 32\% of `floor`, and 2\% of `mq` is missing. Furthermore, we see that the mean and median of `floor` is around 2 and the maximum is 52, indicating that most houses are with more less than 2 floors with some exception of high-rise multi-story houses. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$. Given that its standard deviation is 124.7, there seems quite some deviations in size of properties. The mean and median of property age is about 56.1 and 42 respectively, and the oldest one according to the dataset is 1022 years old. Considering the standard deviation of property age is also not small (74.4), we assume that there are probably few really old properties, while most of them are likely to fall under 100 years. We acknowledge that the minimum value of `price` and `mq` is 1, which may not be realistic. Yet, we decide to keep them as we are not completely certain if they were due to measurement/entry error.
+In the numeric table, we see that all variables except for the `property age` have some missing values. Furthermore, we see that the mean and median of `floor` is around 2 and the maximum is 52, indicating that most houses are with more less than 2 floors with some exception of high-rise multi-story houses. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$. Given that its standard deviation is 124.7, there seems quite some deviations in size of properties. The mean and median of property age is about 56.1 and 42 respectively, and the oldest one according to the dataset is 1022 years old. Considering the standard deviation of property age is also not small (74.4), we assume that there are probably few really old properties, while most of them are likely to fall under 100 years. We acknowledge that the minimum value of `price` and `mq` is 1, which may not be realistic. Yet, we decide to keep them as we are not completely certain if they were due to measurement/entry error.
 
 # Answering the Exploratory Questions
 
@@ -300,7 +299,7 @@ In the numeric table, we see that all variables except for the property age have
 
 ### Visual Exploration
 
-First, we calculate and plot the proportion of missing values for all the variables in *Figure 3 A*. 
+First, we calculate and plot the proportion of missing values for all the variables (see *Figure 3*). 
 
 ```{r missingness, fig.cap = "Proportion of Missing Values", fig.width=9, fig.height=5}
 ## barplot to show the missingness per variable
@@ -320,9 +319,9 @@ houses.cleaned %>%
    labs(x = "", y = "Missingness (%)") 
 ```
 
-The plot shows that the percentage of missing values lies above 30\% for the variable *floor* and above 25\% for the *number of rooms*. Furthermore, about 18\% of the *housing prices* are missing. Except for the *number of bathrooms* which has about 6\% values missing, for the remaining variables less than 3\% are missing, respectively. 
+*Figure 3* shows that `floor` and `n_rooms` have high percentage of missing values, which lies above 30\% and 25\% respectively. The variable `price` also has quite substantial missing values of about 18\%, followed by `n_bathrooms` that has about 6\% missing values. Except for `energy_class`, which has about 1\% missing, the remaining variables have no missing values.
 
-Next we explore the correlation of *price* and other variables and summarize the findings in *Table 5*.
+To explore further on the missingness of `price`, which is the variable of our main interest, we compute the correlation between missingness of *price* and other variables to see if there are any relations.
 
 ```{r}
 houses.cleaned %>%
@@ -339,10 +338,10 @@ houses.cleaned %>%
                of price and other variables", align="c")
 ```
 
-The missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we further check what the pattern of missingness in price across different energy classes looks like.
+As shown in *Table 5*, the missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we visualize the count of missing values of `price` across different energy classes to see we can recognize any patterns (see *Figure 4*).
 
-```{r corrplots, fig.cap = "Missing Values in Price across Different Energy Classes", out.width="80%", fig.align='center'}
-## create plots for missingness in price vs energy class
+```{r corrplots, fig.cap = "Missing Values in Price Across Different Energy Classes", out.width="80%", fig.align='center'}
+## create a barplot for missing values in price vs energy classes
 houses.cleaned %>%
   # add price missingness indicator
   mutate(na_ind = ifelse(is.na(price), 1, 0)) %>% 
@@ -362,10 +361,10 @@ houses.cleaned %>%
   # change the labels
   labs(x = "Energy Class", y = "Missingness in price")
 ```
-*Figure 4* shows that there is higher missingness in price for houses that either have a good energy class of *a* or *a1*, or fall into the very inefficient energy class *g* (marked in red). There is low missingness in *price* for the other energy classes and for houses for which *energy_class* is missing. 
-***@Kyuri "most colour blind people are unable to fully 'see' red, green or blue light." Fig. 4 might use another color*** 
 
-We also check the missingness in price across different regions to see if there are any geographical patterns.
+*Figure 4* shows that there is higher missingness in price for houses that either have good energy class of *a* or *a1*, or fall into the very inefficient energy class *g* (marked in red). There is low missingness in *price* for the other energy classes and for houses whose *energy_class* is missing (NA). 
+
+In addition, we check the missingness in `price` across different regions to see if there are any geographical patterns.
 
 ```{r, fig.cap = "Missingness of Price per Region", out.width="80%", fig.align='center'}
 ## check missingness in price w.r.t regions
@@ -377,35 +376,41 @@ data.geo %>%
    summarize(`Average missing proportion (%)` = sum(na_ind) / n()) %>%
    # add the spatial data
    left_join(., regions, by = c("region" = "DEN_REG")) %>% 
+   # convert it to `sf` object
    st_as_sf() %>%
    ggplot() +
    # plot the italy map
    geom_sf(fill=NA) +
-  # add scatter plots of missingness proportion per region
+   # add scatter plots of missingness proportion per region
    geom_point(color = alpha("red", 0.4),
    aes(size = `Average missing proportion (%)`, geometry = geometry),
    stat = "sf_coordinates") +
-  scale_size(range = c(1, 5)) +
-  # remove unnecessary coordinates
+   scale_size(range = c(1, 5)) +
+   # remove unnecessary coordinates
    theme_void() + 
-  
+   # relocate the legend
    theme(legend.position = "bottom")
-  
 ```
 
-*Figure 5* shows that the proportion of missing data in `price` is not equal across different regions. However, there seem to not be any regions which are drastically more likely to have missing price data/
+*Figure 5* shows that the proportion of missing data in `price` is not equal across different regions. However, there seems not to be any regions, which are drastically more/less likely to have missing values in `price` either.
 
-Next, we examine the relationship between the predictors' missingness indicators and the *price* densities by plotting the density of price (on a log10-scale) split by whether or not the respective value for a given variable is missing or not. These results provide us with some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not.
+Next, we examine the relationships between the missingness of other variables that have high percentage of missing data (i.e., `floor`, `n_rooms`, `n_bathrooms`, `mq`) and `price`.
+
+For each variable we construct a missingness indicator and plot the density of price (on a log10-scale) while splitting the densities by the missingness indicator.
 
 ```{r missingness_density, fig.cap = "Density Plots for Price based on the Missing Indicators"}
 ## function to create a density plot of price with missing indicator
 missing.plots <- function(x) {
    plot <- houses.cleaned %>% ungroup() %>%
+      # create the missingness indicator
       mutate(missing = is.na(.[,x])) %>%
+      # specify ggplot of price on log-10 scale
       ggplot(aes(x = log10(price), fill = missing)) + 
       geom_density(alpha = 0.5, color = NA) + 
       theme_classic() + 
+      # speicfy the axis label
       labs(x = expression(paste(Log["10"],"(Price)"), y = "Density")) + 
+      # set the x-lim and y-lim 
       scale_x_continuous(limits = c(2, 7)) + ylim(0, 1.5)
    return(plot)
 }
@@ -415,12 +420,22 @@ ggarrange(missing.plots("floor"),
           missing.plots("n_rooms"),
           missing.plots("n_bathrooms"),
           missing.plots("mq"),
-          labels = c("         A. Floor", "B. Number of rooms", "C. Number of bathrooms", "D. Squared meter(m2)"),
+          # add labels and legend
+          labels = c("         A. Floor", "B. Number of rooms", "C. Number of bathrooms", 
+                     "D. Squared meter(m2)"),
                      font.label=list(color="black",size = 10),
           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
 ```
 
-The missingness of number of floors (*Figure 6 A*) and number of rooms (*Figure 6 B*) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (*Figure 6 C*) and the meters squared (*Figure 6 D*) missingness shows a different result, namely, missingness tends to occur at higher house prices. We conclude that the missingness mechanism is not MCAR. Therefore, we shouldn't use case-wise deletion. Instead, imputation is an appropriate technique to deal with our missing values.
+The missingness of number of floors (*Figure 6A*) and number of rooms (*Figure 6B*) do not seem to be dependent on the observed price information. Whereas for the number of bathrooms (*Figure 6C*) and the meters squared (*Figure 6D*) missingness show a different result, namely, missingness tends to occur at higher house prices. 
+
+### Conclusion
+
+For the first question, we explored missingness in the dataset.
+We saw that there are quite a lot of missing values for the *floor*, the *number of rooms*, the *number of bathrooms*, and *house price*. As *house price* is of interest for the second question, we took a closer look and realized that missingness on *price* is correlated, e.g., with *energy class* and that the amount of missingness varies somewhat across regions. 
+
+Additionally, we also examined if the missingness of the other variables and *house price* are related. From our results, it appears that they are. Hence, it is unlikely that the missingness mechanism is missing completely at random (*MCAR*). Therefore, before we go on to the next question of exploring geographical patterns of housing price, we decide to first perform multiple imputation procedure.
+
 
 ### Imputation
 
@@ -476,11 +491,6 @@ imputed <- readRDS("data/imputed.rds")
 houses.cleaned <- readRDS("data/housescleaned.rds")
 ```
 
-### Conclusion
-
-For the first question, we explored missingness in the dataset. We saw that there are quite a lot of missing values for the *floor*, the *number of rooms*, the *number of bathrooms*, and *house price*. As *house price* is of interest for the second question, we took a closer look and realized that missingness on *price* is correlated, e.g., with *energy class* and that the amount of missingness varies across regions. 
-
-We also examined if the missingness of the variable *house price* and the other variables are related. From our results it appears that they are. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include a multiple imputation procedure.
 
 ## Question 2: Regional and Provincial Trends in the Median Housing Price and the Median Absolute Deviations in Italy
 
