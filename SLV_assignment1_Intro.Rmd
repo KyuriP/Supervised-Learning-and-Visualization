@@ -475,9 +475,12 @@ region.median <- lapply(imputed, group.region, estimate = T) %>%
 region.mad <- lapply(imputed, group.region, estimate = F) %>% 
    do.call(cbind, .) %>% rowMeans() 
 
+labels <- c("Trentino-Alto Adige", "Molise", "Piemonte", "Bolzano", "Calabria")
+
 price.by.region <- data.frame(region = sort(regions$DEN_REG), 
    median = region.median, mad = region.mad) %>% 
-   left_join(.,regions, by = c("region" = "DEN_REG")) %>% st_as_sf()
+   left_join(.,regions, by = c("region" = "DEN_REG")) %>% st_as_sf() %>%
+   mutate(label = ifelse(region %in% labels, region, NA))
 ```
 
 ```{r}
@@ -511,6 +514,8 @@ plot.list.1 <- map(
       geom_sf(aes(fill = .data[[var]])) +
       # void theme: remove all unncessary coordinates
       theme_void() +
+      # add labels to specific regions
+      geom_sf_label(aes(label = label)) + 
       # color-scheme (color-blind friendly???)
       scale_fill_viridis_c(option = "E", direction = -1) +
       # lengthen the legend
