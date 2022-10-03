@@ -137,7 +137,6 @@ In order to start our exploratory analysis, we first load relevant packages and 
 ```{r libraries+datasets, results='hide'}
 ## load packages
 library(tidyverse)   # for wrangling data
-library(magrittr)    # for using pipes
 library(skimr)       # for skimming data 
 library(sf)          # for spatial analysis
 library(sp)          # for spatial analysis
@@ -160,9 +159,9 @@ provinces <- st_read("data/italy_shape_2022_files/ProvCM01012022_g")
 regions <- st_read("data/italy_shape_2022_files/Reg01012022_g")
 ```
 
-# Exploratory Research Analyses
+# Exploratory Research Questions
 
-We focus on following the exploratory analyses:    
+The goal of our analysis is:    
 
 1. Exploring the missingness in the dataset.    
 
@@ -180,7 +179,7 @@ We observe that the types of some variables are wrongly specified. We convert th
 
 Next, we create a new variable `property_age` by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g., 2209). While some properties may be sold before their construction is completed, we deem it unlikely for properties whose `year_of_construction` is more than 4 years later as of now. Thus, we filter out those with `year_of_construction` > 2026. 
 
-For the second exploratory research question, the variable of our main interest is `price`. When taking a closer look at this variable, we see that it is highly skewed to the right given that the mean (239,939) is far off to the right of the median (135,000). We take a closer look at the distribution of the `price` with the help of a boxplot to examine the outliers (see *Figure 1*). 
+For the second exploratory research question, our variable of interest is `price`. We notice that it is highly skewed to the right given that the mean (239,939) is far off to the right of the median (135,000). We examine the distribution of `price` with a boxplot to examine the outliers (see *Figure 1*). 
 
 ```{r figure1, out.width="70%", fig.align='center', fig.show='hold',fig.cap="Boxplot of Housing Prices in Italy"}
 ## create our own theme that can be used throughout
@@ -237,64 +236,10 @@ houses.cleaned <- houses %>%
   select(-c(id, timestamp, title, year_of_construction)) 
 ```
 
-## Data Summary
-
-After data cleaning, we take a look at the summary statistics to get a better overview of our data.
-We skim through our cleaned dataset using the `skimr` package.
-
-```{r data_summary}
-# settings: round up by 2 decimal places & disable scientific notation
-options(digits = 3, scipen = 999) 
-# specify skimming function
-custom.skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
-   factor = sfl(ordered = NULL),
-   numeric = sfl(p0 = NULL, p25=NULL, p50=NULL, p75=NULL, p100=NULL, hist=NULL, 
-                 median = ~median(., na.rm=T), 
-                 min = ~min(., na.rm=T), max = ~max(., na.rm=T), n_unique=n_unique))
-# summary table
-custom.skim(houses.cleaned) 
-```
-
-From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types. The output is presented in two tables for factor and numeric variables, separately. 
-
-From the table of factor variables, we again see that `location` has 7023 unique values (i.e., municipalities).  Also, there are some missing values for `energy_class` and a lot of missing values for `n_rooms` and `n_bathrooms`. The ratio of properties having an alarm is highest (99.10\%) and lowest for having air conditioning (70.24\%). Three rooms, one bathroom, automonous heating and energy class g were the most frequent levels of the respective factors. 
-
-From the table of numeric variables, we see that all numeric variables have some missing values. For about 18% of `price`, the variable of our main interest, is missing and we look into this more in detail when we address the 2nd question regarding the missingness in `price`. Furthermore, we see that the median number of floor is 2 and the maximum is 52. The average number of square meters for this data set from Italy is 156.1 $m^2$ and while the oldest building according to the giving data is 1022 years old, the average age of the buildings is 56.1 years. 
-***@ALL: Any other statistics interesting? mean, sd?.. something? Already added something. Min for square meter is 1?! (Emilia)***
-
-# Exploratory Data Analysis
-In the following we are performing the exploratory data analyses. First, we explore the missingness in the dataset. Afterwards, we explore trends in *house price* on the regional and provincial level. 
-
-## Question 1: Exploring missingness in the dataset.
-As we later want to analyze the data on the regional and provincial level, we also want to explore the missingness on these levels. Therefore, we aggregate the data from a municipality level to the regional and provincial level. This process is described in the following section. 
-
-## Geographical Data Preparation 
-At the beginning of the assignment, we loaded the *ISTAT* shape files. These files are useful for two reasons.
-First, they contain the list of all Italian municipalities, their respective provinces and regions.
-Therefore, we can use this data to append our original dataset with additional location indicators.
-Second, they contain the shapes of Italy divided into provinces and regions. 
-This is particularly useful for creating map plots using `ggplot2`.
-
-Each sale in our dataset is assigned to one of 7023 municipalities. In order to create plots which visualize the differences in average housing prices across Italy, we assign each municipality to its corresponding province and region. We use the data from *ISTAT* to append the province and region information to every observed municipality in our dataset. 
-We use fuzzy matching for inexact matches as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the ISTAT shape files. The result of the following chunk of code is that all the municipalities are assigned their regions and provinces.
-
-```{r eval=FALSE, include=FALSE}
-# create predictor matrix
-predictors <- houses.cleaned %>% ungroup() %>% quickpred()
-
-# multiple imputation procedure (m = 5)
-imputations <- mice(houses.cleaned, m = 5, seed = 1, predictorMatrix = predictors)
-```
+As some of our explorations are on the regional and provincial, we use the *ISTAT* shape files to append our original dataset with provincial and regional information. To this end, we use fuzzy string matching for inexact matches as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the ISTAT shape files.
 
 ```{r}
-## load imputation results
-imputations <- readRDS("data/imputation.rds")
-```
-
-```{r prepgeo, eval=FALSE, cache=TRUE, include=FALSE}
-## function to join geospatial data 
-join.geo <- function(data) {
-   data.geo <- stringdist_left_join(data, municipalities, 
+data.geo <- stringdist_left_join(houses.cleaned, municipalities, 
          by = c("location" = "COMUNE"), distance_col = "distance", 
          ignore_case = TRUE) %>% 
       group_by(location) %>% 
@@ -307,31 +252,43 @@ join.geo <- function(data) {
       rename(region = DEN_REG, province = DEN_UTS) %>%
       select(-geometry, -COD_REG, -COD_PROV) %>%
       relocate(c(region, province), .after = location) 
-}
-
-# join geospatial data to the imputed data
-imputed <- lapply(complete(imputations, "all"), join.geo)
-
-# join geospatial data to the cleaned house data
-houses.cleaned <- join.geo(houses.cleaned)
 ```
 
-```{r}
-# load the imputed data including the geospatial data
-imputed <- readRDS("data/imputed.rds")
 
-# load the cleaned house data including the geospatial data
-houses.cleaned <- readRDS("data/housescleaned.rds")
+## Data Summary
+
+After data cleaning, we take a look at the summary statistics to get a better overview of our data.
+We skim through our cleaned dataset using the `skimr` package.
+
+```{r data_summary}
+## settings: round up by 2 decimal places & disable scientific notation
+options(digits = 3, scipen = 999) 
+## specify skimming function
+custom.skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL),
+   factor = sfl(ordered = NULL),
+   numeric = sfl(p0 = NULL, p25=NULL, p50=NULL, p75=NULL, p100=NULL, hist=NULL, 
+                 median = ~median(., na.rm=T), 
+                 min = ~min(., na.rm=T), max = ~max(., na.rm=T), n_unique=n_unique))
+## summary table
+custom.skim(houses.cleaned) 
 ```
 
-To answer our first research question, we aggregate our data on two levels: 1) regional and 2) provincial level by computing two aggregated statistics: 1) the median housing price and 2) the median absolute deviation (MAD) in housing price on the two respective levels. This yields two sub-datasets, one per each level. To each, we attach geometric information needed for geographic plotting and convert it to an `sf` object which is a requirement for plotting maps.
+From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types. The output is presented in a table for factor and numeric variables, respectively. 
 
-Having done this, we are ready to explore the missingness in the dataset.
+From the table of factor variables, we again see that `location` has 7023 unique values (i.e., municipalities).  Also, there are some missing values for `energy_class` and a lot of missing values for `n_rooms` and `n_bathrooms`. The ratio of properties having an alarm is highest (99.10\%) and lowest for having air conditioning (70.24\%). Three rooms, one bathroom, autonomous heating and energy class g were the most frequent levels of the respective factors. 
 
-First, we do so by calculating and plotting the proportion of missing values for all the variables in *Figure 3 A*.
+In the numeric table, we see that all the variables have some missing values. About 18\% of `price` is missing. We look into this more in detail when we address the first exploratory question which concerns the missingness in `price`. Furthermore, we see that the median `floor` is 2 and the maximum is 52. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$ and while the oldest building according to the dataset is 1022 years old, the average age of the buildings is 56.1 years.
+
+# Answering the Exploratory Questions
+
+## Question 1: Exploring missingness in the dataset.
+
+### Visual Exploration
+
+First, we calculate and plot the proportion of missing values for all the variables in *Figure 3 A*. 
 
 ```{r missingness, fig.cap = "Proportion of Missing Values", fig.width=9, fig.height=5}
-# barplot to show the missingness per variable
+## barplot to show the missingness per variable
 houses.cleaned %>%
    # get the average missing proportion
    is.na() %>% colMeans() %>% stack() %>% 
@@ -350,7 +307,8 @@ houses.cleaned %>%
 
 The plot shows that the percentage of missing values lies above 30\% for the variable *floor* and above 25\% for the *number of rooms*. Furthermore, about 18\% of the *housing prices* are missing. Except for the *number of bathrooms* which has about 6\% values missing, for the remaining variables less than 3\% are missing, respectively. 
 
-In the following, we explore the correlation of *price* and the other variables and summarize the findings in *Table 5*.
+Next we explore the correlation of *price* and other variables and summarize the findings in *Table 5*.
+
 ```{r}
 houses.cleaned %>%
   # create missingness indicator of price
@@ -389,13 +347,14 @@ houses.cleaned %>%
   # change the labels
   labs(x = "Energy Class", y = "Missingness in price")
 ```
-*Figure 4* shows that there is higher missingness in price for houses that either have a good energy class of *a* or *a1*, or fall into the very inefficient energy class *g*. There is low missingness in *price* for the other energy classes and for houses for which *price* is missing. 
+*Figure 4* shows that there is higher missingness in price for houses that either have a good energy class of *a* or *a1*, or fall into the very inefficient energy class *g* (marked in red). There is low missingness in *price* for the other energy classes and for houses for which *energy_class* is missing. 
+***@Kyuri "most colour blind people are unable to fully 'see' red, green or blue light." Fig. 4 might use another color*** 
 
-We also check the missingness in price across different regions to see if there are any patterns.
+We also check the missingness in price across different regions to see if there are any geographical patterns.
 
 ```{r, fig.cap = "Missingness of Price per Region", out.width="80%", fig.align='center'}
 ## check missingness in price w.r.t regions
-houses.cleaned %>% 
+data.geo %>% 
    # add price missingness indicator
    mutate(na_ind = ifelse(is.na(price), 1, 0)) %>%
    group_by(region) %>%
@@ -419,9 +378,7 @@ houses.cleaned %>%
   
 ```
 
-*Figure 5* shows that the proportion of missing data in `price` is not equal across different regions. 
-
-<!-- Therefore, we explored if the missingness of the predictors and the outcome variable *house prices* are related. First, we investigated the correlation between the missingness indicator for *price* and the predictors. Second, we visually examined the relationship between the predictors' missingness indicators and the *price* densities. Lastly, we visually inspected the percentage of missingness per region.   -->
+*Figure 5* shows that the proportion of missing data in `price` is not equal across different regions. However, there seem to not be any regions which are drastically more likely to have missing price data/
 
 Next, we examine the relationship between the predictors' missingness indicators and the *price* densities by plotting the density of price (on a log10-scale) split by whether or not the respective value for a given variable is missing or not. These results provide us with some indication of the missing data mechanism. Specifically, if missing completely at random (MCAR) is plausible to assume or not.
 
@@ -438,7 +395,7 @@ missing.plots <- function(x) {
    return(plot)
 }
 
-# multiple plots for floor, no. of rooms, no. of bathrooms, and meters squared
+## multiple plots for floor, no. of rooms, no. of bathrooms, and meters squared
 ggarrange(missing.plots("floor"), 
           missing.plots("n_rooms"),
           missing.plots("n_bathrooms"),
@@ -448,18 +405,73 @@ ggarrange(missing.plots("floor"),
           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
 ```
 
-The missingness of number of floors (*Figure 6 A*) and number of rooms (*Figure 6 B*) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (*Figure 6 C*) and the meters squared (*Figure 6 D*) missingness shows a different result, namely, missingness tends to occur at higher house prices.
-
-### Conclusion
-For the first question, we explored missingness in the dataset. We saw that there are quite a lot of missing values for the *floor*, the *number of rooms*, the *number of bathrooms*, and *house price*. As *house price* is of interest for the second question, we took a closer look and realized that missingness on *price* is correlated, e.g., with *energy class* and that the amount of missingness varies across regions. 
-
-We also examined if the missingness of the variable *house price* and the other variables are related. From our results it appears that they are. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include a multiple imputation procedure before investigating geographical trends in the median and the MAD.
+The missingness of number of floors (*Figure 6 A*) and number of rooms (*Figure 6 B*) does not seem to be dependent on the observed price information. Whereas for the number of bathrooms (*Figure 6 C*) and the meters squared (*Figure 6 D*) missingness shows a different result, namely, missingness tends to occur at higher house prices. We conclude that the missingness mechanism is not MCAR. Therefore, we shouldn't use case-wise deletion. Instead, imputation is an appropriate technique to deal with our missing values.
 
 ### Imputation
+
+We run five multiple imputations on our data using a selection of predictors derived from `quickpred`. Note that some of the following code chunks are set to `eval=FALSE`. They take a long time to run and need not be rerun as we saved the resulting objects and load them in subsequent chunks.
+
+***@EP could you 1) add save.RDS lines at the bottom of the eval = F chunks and 2) write a little bit more on what is being done here?***
+
+```{r imputation,eval=FALSE}
+## create predictor matrix
+predictors <- houses.cleaned %>% ungroup() %>% quickpred()
+
+## multiple imputation procedure (m = 5)
+imputations <- mice(houses.cleaned, m = 5, seed = 1, predictorMatrix = predictors)
+```
+
 We limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data (see Appendix).
 
+```{r}
+## load imputation results
+imputations <- readRDS("data/imputation.rds")
+```
+
+```{r prepgeo, eval=FALSE, cache=TRUE}
+## function to join geospatial data 
+join.geo <- function(data) {
+   data.geo <- stringdist_left_join(data, municipalities, 
+         by = c("location" = "COMUNE"), distance_col = "distance", 
+         ignore_case = TRUE) %>% 
+      group_by(location) %>% 
+      slice_min(distance) %>%
+      select(-geometry,-distance) %>% 
+      left_join(., as.data.frame(regions[,c("COD_REG","DEN_REG")])) %>% 
+      select(-geometry, -COMUNE) %>% 
+      left_join(., as.data.frame(provinces[,c("DEN_UTS", "COD_PROV")], 
+         by = "COD_PROV")) %>%
+      rename(region = DEN_REG, province = DEN_UTS) %>%
+      select(-geometry, -COD_REG, -COD_PROV) %>%
+      relocate(c(region, province), .after = location) 
+}
+
+## join geospatial data to the imputed data
+imputed <- lapply(complete(imputations, "all"), join.geo)
+
+## join geospatial data to the cleaned house data
+houses.cleaned <- join.geo(houses.cleaned)
+```
+
+```{r}
+## load the imputed data including the geospatial data
+imputed <- readRDS("data/imputed.rds")
+
+## load the cleaned house data including the geospatial data
+houses.cleaned <- readRDS("data/housescleaned.rds")
+```
+
+### Conclusion
+
+For the first question, we explored missingness in the dataset. We saw that there are quite a lot of missing values for the *floor*, the *number of rooms*, the *number of bathrooms*, and *house price*. As *house price* is of interest for the second question, we took a closer look and realized that missingness on *price* is correlated, e.g., with *energy class* and that the amount of missingness varies across regions. 
+
+We also examined if the missingness of the variable *house price* and the other variables are related. From our results it appears that they are. Hence, it is unlikely that the missingness mechanism is MCAR. Therefore, we include a multiple imputation procedure.
+
 ## Question 2: Regional and Provincial Trends in the Median Housing Price and the Median Absolute Deviations in Italy
-We use the imputed dataset to explore whether there is a geographical trend in the median and the median absolute deviation (MAD) *housing price* on a regional or provincial level. In order to do so, we plot the median and the MAD on the regional and the provincial level:
+
+We use the imputed dataset to explore whether there are geographical trends in the median and the median absolute deviation (MAD) *housing price*. 
+
+First we plot the median and the MAD on the regional and the provincial level:
 
 ```{r}
 ## function to get aggregated region price information 
@@ -540,7 +552,7 @@ plot.list.2 <- map(
      }
   )
 
-# combine the plot lists
+## combine the plot lists
 plot.list <- c(plot.list.1, plot.list.2)
 ```
 
@@ -556,20 +568,21 @@ ggarrange(plotlist = plot.list[c(2,4)], nrow = 1, ncol = 2, common.legend = TRUE
           legend = "bottom")
 ```
 
-On the regional level, we see that the median for the region *Trentino-Alto Adige* (200 000€) are the highest, and the lowest for *Molise* (79 000€). We recognize a trend that the median price is lower for more Southern regions in Italy. The only exception from this is the region of *Piemonte* (99 000€) which has a lower median price than the surrounding regions in the North. Regarding the MAD, a measure of variability within a region, we see that it is highest for the regions with higher median prices. This is recognizable as the color patterns in the median plot and the MAD plot are very similar. 
+On the regional level, we see that the median for the region *Trentino-Alto Adige* (€200,000) are the highest, and the lowest for *Molise* (€79,000). We recognize a trend that the median price is lower for more Southern regions in Italy. The only exception from this is the region of *Piemonte* (€99,000) which has a lower median price than the surrounding regions in the North. Regarding the MAD, a measure of variability within a region, we see that it is highest for the regions with higher median prices. This is recognizable as the color patterns in the median plot and the MAD plot are very similar, and it means that more expensive regions also tend to have more variability than less expensive regions. 
 
-On the provincial level, it can be seen that the high median of the *Trentino-Alto Adige* region is mainly due to the high median of 400 000€ in the province of *Bolzano*. As the other provinces in that region have lower median prices, the MAD in that region is comparably high. 
-The opposite is the case within the Southern regions, here, the provinces that make up the region of *Calabria* for example, all have a low median price. Hence, the MAD for that region is low. 
+On the provincial level, it can be seen that the high median of the *Trentino-Alto Adige* region is mainly due to the high median of the province of *Bolzano* (€400,000). As other provinces in that region have lower median prices, the MAD in that region is comparably high. 
+The opposite is true within the southern regions where the provinces that make up the region of *Calabria* for example, all have a low median price. Hence, the MAD for that region is low. 
 
 Given that the overall geographical pattern for median and MAD of `price` correspond to each other, it is interesting to investigate further the possible differences in the distribution of `price` between high- and low-median regions.
+
 ```{r groupdiff, fig.cap="group differences in price distribution"}
-# top 2 high median regions
+## top 2 high median regions
 top.2.median <- price.by.region %>% slice_max(median, n = 2) %>% pull(region)
 
-# lowest 2 low median regions
+## lowest 2 low median regions
 lowest.2.median <- price.by.region %>% slice_min(median, n = 2) %>% pull(region)
 
-# plot the histograms for each region in the high and low median groups
+## plot the histograms for each region in the high and low median groups
 imputed[[1]] %>% 
   # subset top two and bottom two countries
   filter(region %in% c(top.2.median, lowest.2.median)) %>%
@@ -590,16 +603,17 @@ imputed[[1]] %>%
   labs(fill = "high/low regions")  
 ```
 
-An interesting take-away from *Figure 9* is that all the densities for the *house price* are right skewed. This is reasonable for house prices as one would expect that there are more cheap and moderately priced houses and only few very expensive houses. Furthermore, it is apparent that there are most sells in the dataset from the *Toscana* region and there are only very few very expensive houses in the regions of *Calabria* and *Molise* as one would expect with those regions having a lower median.
+An interesting take-away from *Figure 9* is that all the densities for the *house price* are right skewed. This is reasonable for house prices as one would expect that there are more cheap and moderately priced houses and only few very expensive houses. Furthermore, it is apparent that there are most sells in the dataset from the *Toscana* region and there are only very few very expensive houses in the regions of *Calabria* and *Molise* as one would expect with those regions having a lower median. ***maybe make this more clear***
 
 ### Conclusion
-All things considered, we found a general decrease in the median price when moving from Northern to Southern Italy. We also showed that higher medians on a regional level are due to a higher median on the province level with one region having a particular high median. Consequently, such regions where there is one province with a higher median of *house price*, the MAD is higher too if the other provinces in that region do not have a high median.
+All things considered, we found a general decrease in the median price when moving from northern to southern Italy. We also showed that higher medians on a regional level are due to a higher median on the province level with one region having a particular high median. Consequently, such regions where there is one province with a higher median of *house price*, the MAD is higher too if the other provinces in that region do not have a high median.
 Furthermore, by including the plots on the province level, it was recognizable that there were no sales in some provinces. ***How many provinces did not have data?*** 
 
 # Overall Conclusion
+
 All things considered, we identified that there is quite some missingness present - especially for *house price* for which about 18\% of values were missing. The absolute correlation of missingness in *house price* was highest with *energy class* (-0.27). As we were not able to conclude from our analysis that the missingness mechanism is MCAR, we decided to impute the missing values.
 
-Using the imputed dataset, we explored the median and the mediane absolute deviation on the regional and provicial level in Italy. We found a trend in the median price from more expensive to cheaper when going from North to South in Italy. We also have shown that these higher medians on a regional level are due to a higher median on the provincial level. In most cases, the MAD for such regions was high, too, as there frequently is one province with a higher median of *house price* and the MAD is consequently higher if the other provinces in that region do not have a high median, too. 
+Using the imputed dataset, we explored the median and the MAD on the regional and provincial level in Italy. We found a trend in the median price from more expensive to cheaper when going from North to South in Italy. We also have shown that these higher medians on a regional level are due to a higher median on the provincial level. In most cases, the MAD for such regions was high, too, as there frequently is one province with a higher median of *house price* and the MAD is consequently higher if the other provinces in that region do not have a high median, too. 
 
 # Appendix \label{ref:appendix}
 
@@ -611,9 +625,9 @@ custom.skim(houses)
 
 ## Convergence of the algorithm and plausability of the imputed dataset
 ```{r}
-# convergence of the algorithm
+## convergence of the algorithm
 plot(imputations)
 
-# plausibility of the imputed data
+## plausibility of the imputed data
 densityplot(imputations, ~n_rooms + mq + floor + n_bathrooms + price, lwd = 2)
 ```

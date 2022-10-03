@@ -5,14 +5,14 @@
 \contentsline {section}{\numberline {3}Exploratory Research Questions}{3}{section.3}%
 \contentsline {section}{\numberline {4}Data Cleaning}{3}{section.4}%
 \contentsline {subsection}{\numberline {4.1}Data Summary}{6}{subsection.4.1}%
-\contentsline {section}{\numberline {5}Exploratory Data Analysis}{8}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Data Preparation for Geographical Plotting}{8}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Question 1: Regional and Provincial Trends in the Median Housing Price and Absolute Deviations in Italy}{9}{subsection.5.2}%
-\contentsline {subsection}{\numberline {5.3}Question 2: Correlation Between Missingness of Price and Other Variables }{11}{subsection.5.3}%
-\contentsline {subsection}{\numberline {5.4}Question 3: What are the most important predicotrs of housing price in Italy?}{15}{subsection.5.4}%
-\contentsline {subsubsection}{\numberline {5.4.1}Conclusion}{17}{subsubsection.5.4.1}%
-\contentsline {subsubsection}{\numberline {5.4.2}Imputation}{17}{subsubsection.5.4.2}%
-\contentsline {subsubsection}{\numberline {5.4.3}Prediction model}{20}{subsubsection.5.4.3}%
-\contentsline {subsubsection}{\numberline {5.4.4}Conclusion}{22}{subsubsection.5.4.4}%
-\contentsline {section}{\numberline {6}Overall Conclusion}{22}{section.6}%
-\contentsline {section}{\numberline {7}Appendix }{22}{section.7}%
+\contentsline {section}{\numberline {5}Answering the Exploratory Questions}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Question 1: Exploring missingness in the dataset.}{8}{subsection.5.1}%
+\contentsline {subsubsection}{\numberline {5.1.1}Visual Exploration}{8}{subsubsection.5.1.1}%
+\contentsline {subsubsection}{\numberline {5.1.2}Imputation}{14}{subsubsection.5.1.2}%
+\contentsline {subsubsection}{\numberline {5.1.3}Conclusion}{15}{subsubsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.2}Question 2: Regional and Provincial Trends in the Median Housing Price and the Median Absolute Deviations in Italy}{15}{subsection.5.2}%
+\contentsline {subsubsection}{\numberline {5.2.1}Conclusion}{19}{subsubsection.5.2.1}%
+\contentsline {section}{\numberline {6}Overall Conclusion}{20}{section.6}%
+\contentsline {section}{\numberline {7}Appendix }{20}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Summary of the raw data using the my\_skim function.}{20}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Convergence of the algorithm and plausability of the imputed dataset}{21}{subsection.7.2}%
