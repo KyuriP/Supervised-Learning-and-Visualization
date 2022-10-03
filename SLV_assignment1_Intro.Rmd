@@ -84,7 +84,7 @@ knitr::opts_chunk$set(message = FALSE,
 # Introduction
 \vspace{-0.5cm}
 This is an exploratory data analysis of the Italian housing market in 2022. 
-For context, Italy contains a total of 20 regions (*regioni*), 107 provinces (*province*) and 7,904 municipalities (*comuni*). In the present work, we pose several interesting research questions which can be answered by means of data visualization and summary statistics.
+For context, Italy contains a total of 20 regions (*regioni*), 107 provinces (*province*) and 7,904 municipalities (*comuni*). In the present work, we pose a couple of interesting research questions which can be answered by means of data visualization and summary statistics.
 
 ## The Dataset
 
@@ -130,7 +130,7 @@ Table: Description of Variables in the Italy Housing Dataset
 
 # Preparation
 
-In order to start our exploratory analysis, we first load relevant packages and import the dataset as well as the ISTAT shape files. 
+In order to start our exploratory analysis, we first load relevant packages and import the housing dataset as well as the ISTAT shape files. 
 
 ## Load Packages & Import Data
 
@@ -152,7 +152,8 @@ houses <- read.csv("data/housing_data_italy_august2022.csv",
 ## import istat shape files
 # municipality
 municipalities <- st_read("data/italy_shape_2022_files/Com01012022_g")
-municipalities <- municipalities[c("COD_REG", "COD_PROV", "COMUNE")]  
+# extract only relevant geometric info
+municipalities <- municipalities[c("COD_REG", "COD_PROV", "COMUNE")] 
 # province
 provinces <- st_read("data/italy_shape_2022_files/ProvCM01012022_g") 
 # region
@@ -165,7 +166,7 @@ The goal of our analysis is:
 
 1. Exploring the missingness in the dataset.    
 
-2. Investigating whether there are any geographical trends in the median housing prices and their absolute deviations on regional and/or provincial level?   
+2. Investigating whether there are any geographical trends in the housing prices on regional and/or provincial level.  
 
 # Data Cleaning
 \vspace {-0.3cm}
@@ -179,7 +180,7 @@ We observe that the types of some variables are wrongly specified. We convert th
 
 Next, we create a new variable `property_age` by subtracting the `year_of_construction` from 2022. In the original dataset, there are some unreasonable years of construction (e.g., 2209). While some properties may be sold before their construction is completed, we deem it unlikely for properties whose `year_of_construction` is more than 4 years later as of now. Thus, we filter out those with `year_of_construction` > 2026. 
 
-For the second exploratory research question, our variable of interest is `price`. We notice that it is highly skewed to the right given that the mean (239,939) is far off to the right of the median (135,000). We examine the distribution of `price` with a boxplot to examine the outliers (see *Figure 1*). 
+For the second exploratory research question, our variable of interest is `price`. We notice that it is highly skewed to the right given that the mean (239,939) is far off to the right of the median (135,000). We examine the distribution of `price` with a boxplot (see *Figure 1*). 
 
 ```{r figure1, out.width="70%", fig.align='center', fig.show='hold',fig.cap="Boxplot of Housing Prices in Italy"}
 ## create our own theme that can be used throughout
@@ -197,9 +198,10 @@ houses %>%
    scale_x_continuous(labels=scales::label_comma(), 
    # rotate the x-axis labels
    guide = guide_axis(angle = 25)) +
-   # apply minimal theme plus our own theme
+   # apply minimal theme plus our own customized theme
    theme_minimal() + custom.theme
 ```
+
 From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M. The distribution of housing prices after filtering can be seen in *Figure 2*.
 
 ```{r figure2, out.width="70%", fig.align='center',fig.show='hold', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
@@ -216,7 +218,8 @@ houses %>%
   # apply our theme
   theme_minimal() + custom.theme
 ```
-From *Figure 2*, we take that the distribution of housing prices after filtering shows that there is still a long right tail, but that is to be expected with housing prices in any country. The extreme outliers have been eliminated. From this plot, we also conclude that when working with housing price data, it is advisable to use centrality and spread measures that are robust to skewed data. For this reason, we will use the *median* and *median absolute deviation (MAD)* instead of the mean and variance in our exploration of the present dataset. 
+
+As shown in *Figure 2*, the distribution of housing prices still has a long right tail after eliminating extreme outliers, but that is to be expected with housing prices in any country. Based on this, we conclude that when working with this housing price data, it is advisable to use centrality and spread measures that are robust to skewed data. For this reason, we will use *median* and *median absolute deviation (MAD)* instead of the mean and variance in our exploration of the present dataset. 
 
 ```{r data_cleaning}
 ## cleaning up the housing data
@@ -236,22 +239,32 @@ houses.cleaned <- houses %>%
   select(-c(id, timestamp, title, year_of_construction)) 
 ```
 
-As some of our explorations are on the regional and provincial, we use the *ISTAT* shape files to append our original dataset with provincial and regional information. To this end, we use fuzzy string matching for inexact matches as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the ISTAT shape files.
+In order to employ the geometric data that we imported earlier (*ISTAT* shape files), we append them to the cleaned housing dataset. To this end, we use *fuzzy string matching* for inexact matches, as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the *ISTAT* shape files.
 
-```{r}
-data.geo <- stringdist_left_join(houses.cleaned, municipalities, 
+```{r, cache=TRUE}
+## append the geometric info to the cleaned housing dataset
+data.geo <- 
+  # fuzzy join by municipality
+  stringdist_left_join(houses.cleaned, municipalities, 
          by = c("location" = "COMUNE"), distance_col = "distance", 
          ignore_case = TRUE) %>% 
+  # keep the closest match for each location
       group_by(location) %>% 
       slice_min(distance) %>%
-      select(-geometry,-distance) %>% 
+  # remove geometry and distance
+      select(-geometry,-distance) %>%
+  # left join region information, remove geometry and COMUNE
       left_join(., as.data.frame(regions[,c("COD_REG","DEN_REG")])) %>% 
       select(-geometry, -COMUNE) %>% 
+  # left join province information
       left_join(., as.data.frame(provinces[,c("DEN_UTS", "COD_PROV")], 
          by = "COD_PROV")) %>%
+  # rename DEN_REG and DEN_UTS
       rename(region = DEN_REG, province = DEN_UTS) %>%
+  # remove geometry, regional and provincial codes
       select(-geometry, -COD_REG, -COD_PROV) %>%
-      relocate(c(region, province), .after = location) 
+  # move region and province to after location
+      relocate(c(region, province), .after = location)
 ```
 
 
@@ -269,15 +282,17 @@ custom.skim <- skim_with(character = sfl(whitespace=NULL, min = NULL, max = NULL
    numeric = sfl(p0 = NULL, p25=NULL, p50=NULL, p75=NULL, p100=NULL, hist=NULL, 
                  median = ~median(., na.rm=T), 
                  min = ~min(., na.rm=T), max = ~max(., na.rm=T), n_unique=n_unique))
-## summary table
+## summary statistics table
 custom.skim(houses.cleaned) 
 ```
 
-From the output, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types. The output is presented in a table for factor and numeric variables, respectively. 
+From the data summary table, we see that our cleaned dataset has 220,607 rows and 20 columns, 16 of which are factors, and 4 of which are numeric types. The output is presented in a table for factor and numeric variables, separately.
 
-From the table of factor variables, we again see that `location` has 7023 unique values (i.e., municipalities).  Also, there are some missing values for `energy_class` and a lot of missing values for `n_rooms` and `n_bathrooms`. The ratio of properties having an alarm is highest (99.10\%) and lowest for having air conditioning (70.24\%). Three rooms, one bathroom, autonomous heating and energy class g were the most frequent levels of the respective factors. 
+From the table of factor variables, we again see that `location` has 7023 unique values (i.e., municipalities).  Also, there are some missing values for `energy_class` and a lot of missing values for `n_rooms` and `n_bathrooms`. We look into this more in detail when we address the first exploratory question which concerns the missingness in the dataset. Looking at the `top_counts`, we see that three rooms (`n_rooms`), one bathroom (`n_bathrooms`), autonomous heating (`heating`) and energy class of *g* (`energy_class`) are the most frequent value of the respective factors.
 
-In the numeric table, we see that all the variables have some missing values. About 18\% of `price` is missing. We look into this more in detail when we address the first exploratory question which concerns the missingness in `price`. Furthermore, we see that the median `floor` is 2 and the maximum is 52. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$ and while the oldest building according to the dataset is 1022 years old, the average age of the buildings is 56.1 years.
+<!-- The ratio of properties having an alarm is highest (99.10\%) and lowest for having air conditioning (70.24\%).  -->
+
+In the numeric table, we see that all variables except for the property age have some missing values. About 18\% of `price`, 32\% of `floor`, and 2\% of `mq` is missing. Furthermore, we see that the mean and median of `floor` is around 2 and the maximum is 52, indicating that most houses are with more less than 2 floors with some exception of high-rise multi-story houses. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$. Given that its standard deviation is 124.7, there seems quite some deviations in size of properties. The mean and median of property age is about 56.1 and 42 respectively, and the oldest one according to the dataset is 1022 years old. Considering the standard deviation of property age is also not small (74.4), we assume that there are probably few really old properties, while most of them are likely to fall under 100 years. We acknowledge that the minimum value of `price` and `mq` is 1, which may not be realistic. Yet, we decide to keep them as we are not completely certain if they were due to measurement/entry error.
 
 # Answering the Exploratory Questions
 
