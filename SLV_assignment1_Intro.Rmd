@@ -168,6 +168,7 @@ The goal of our analysis is:
 
 2. Investigating whether there are any geographical trends in the housing prices on regional and/or provincial level.  
 
+\newpage
 
 # Data Cleaning
 \vspace {-0.3cm}
@@ -240,32 +241,41 @@ houses.cleaned <- houses %>%
 
 In order to employ the geometric data that we imported earlier (*ISTAT* shape files), we append them to the cleaned housing dataset. To this end, we use *fuzzy string matching* for inexact matches, as we found that there were some minor inconsistencies in how the municipalities were named in our dataset as opposed to their names in the *ISTAT* shape files.
 
-```{r, cache=TRUE}
-## append the geometric info to the cleaned housing dataset
-data.geo <- 
-  # fuzzy join by municipality
-  stringdist_left_join(houses.cleaned, municipalities, 
+```{r prepgeo, eval=FALSE, cache=TRUE}
+## function to join geospatial data 
+join.geo <- function(data) {
+   data.geo <- 
+      # fuzzy join by municipality
+      stringdist_left_join(houses.cleaned, municipalities, 
          by = c("location" = "COMUNE"), distance_col = "distance", 
          ignore_case = TRUE) %>% 
-  # keep the closest match for each location
+      # keep the closest match for each location
       group_by(location) %>% 
       slice_min(distance) %>%
-  # remove geometry and distance
+      # remove geometry and distance
       select(-geometry,-distance) %>%
-  # left join region information, remove geometry and COMUNE
+      # left join region information, remove geometry and COMUNE
       left_join(., as.data.frame(regions[,c("COD_REG","DEN_REG")])) %>% 
       select(-geometry, -COMUNE) %>% 
-  # left join province information
+      # left join province information
       left_join(., as.data.frame(provinces[,c("DEN_UTS", "COD_PROV")], 
          by = "COD_PROV")) %>%
-  # rename DEN_REG and DEN_UTS
+      # rename DEN_REG and DEN_UTS
       rename(region = DEN_REG, province = DEN_UTS) %>%
-  # remove geometry, regional and provincial codes
+      # remove geometry, regional and provincial codes
       select(-geometry, -COD_REG, -COD_PROV) %>%
-  # move region and province to after location
+      # move region and province to after location
       relocate(c(region, province), .after = location)
+}
+
+## join geospatial data to the cleaned house data
+data.geo <- join.geo(houses.cleaned)
 ```
 
+```{r}
+## load the cleaned house data including the geospatial data
+data.geo <- readRDS("data/datageo.rds")
+```
 
 ## Data Summary
 
@@ -447,6 +457,9 @@ predictors <- houses.cleaned %>% ungroup() %>% quickpred()
 
 ## multiple imputation procedure (m = 5)
 imputations <- mice(houses.cleaned, m = 5, seed = 1, predictorMatrix = predictors)
+
+## join geospatial data to the imputed data
+imputed <- lapply(complete(imputations, "all"), join.geo)
 ```
 
 We limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data (see *Appendix*).
@@ -454,39 +467,9 @@ We limited the diagnostics for the imputation procedure to the convergence of th
 ```{r}
 ## load imputation results
 imputations <- readRDS("data/imputation.rds")
-```
 
-```{r prepgeo, eval=FALSE, cache=TRUE}
-## function to join geospatial data 
-join.geo <- function(data) {
-   data.geo <- stringdist_left_join(data, municipalities, 
-         by = c("location" = "COMUNE"), distance_col = "distance", 
-         ignore_case = TRUE) %>% 
-      group_by(location) %>% 
-      slice_min(distance) %>%
-      select(-geometry,-distance) %>% 
-      left_join(., as.data.frame(regions[,c("COD_REG","DEN_REG")])) %>% 
-      select(-geometry, -COMUNE) %>% 
-      left_join(., as.data.frame(provinces[,c("DEN_UTS", "COD_PROV")], 
-         by = "COD_PROV")) %>%
-      rename(region = DEN_REG, province = DEN_UTS) %>%
-      select(-geometry, -COD_REG, -COD_PROV) %>%
-      relocate(c(region, province), .after = location) 
-}
-
-## join geospatial data to the imputed data
-imputed <- lapply(complete(imputations, "all"), join.geo)
-
-## join geospatial data to the cleaned house data
-houses.cleaned <- join.geo(houses.cleaned)
-```
-
-```{r}
 ## load the imputed data including the geospatial data
 imputed <- readRDS("data/imputed.rds")
-
-## load the cleaned house data including the geospatial data
-houses.cleaned <- readRDS("data/housescleaned.rds")
 ```
 
 
@@ -596,12 +579,15 @@ ggarrange(plotlist = plot.list[c(2,4)], nrow = 1, ncol = 2, common.legend = TRUE
           legend = "bottom")
 ```
 
-On the regional level, we see that the median for the region *Trentino-Alto Adige* (€200,000) are the highest, and the lowest for *Molise* (€79,000). We recognize a trend that the median price is lower for more Southern regions in Italy. The only exception from this is the region of *Piemonte* (€99,000) which has a lower median price than the surrounding regions in the North. Regarding the MAD, a measure of variability within a region, we see that it is highest for the regions with higher median prices. This is recognizable as the color patterns in the median plot and the MAD plot are very similar, and it means that more expensive regions also tend to have more variability than less expensive regions. 
+On the regional level, we see that the median of price is the highest for region *Trentino-Alto Adige* (€200,000; the darkest blue), and the lowest for region *Molise* (€79,000; the brightest yellow). 
+We recognize that there is a geographical trend in housing price such that the median price is in general lower for the Southern regions compared to the Northern regions in Italy. 
+The only exception from this is the region *Piemonte* (€99,000), which has a lower median price than the surrounding regions.
 
-On the provincial level, it can be seen that the high median of the *Trentino-Alto Adige* region is mainly due to the high median of the province of *Bolzano* (€400,000). As other provinces in that region have lower median prices, the MAD in that region is comparably high. 
-The opposite is true within the southern regions where the provinces that make up the region of *Calabria* for example, all have a low median price. Hence, the MAD for that region is low. 
+On the provincial level, it can be seen that the high median of *Trentino-Alto Adige* region is mainly due to the high median of the province *Bolzano* (€400,000). The general trend of Northern regions being more expensive than the Southern regions can still be observed on the provincial level. In addition, we notice that there is no housing sales data available in some provinces (see the empty space/missing provinces in the province map).
 
-Given that the overall geographical pattern for median and MAD of `price` correspond to each other, it is interesting to investigate further the possible differences in the distribution of `price` between high- and low-median regions.
+Regarding the MAD, a measure of variability in housing price, we see that it is higher for the regions with high median prices, and lower for the regions with low median prices. This is recognizable as the overall color pattern in the median plot matches with the pattern in the MAD plot, which implies that again Northern parts tend to have more variability in price compared to the Southern parts of Italy.
+
+Given that the overall geographical pattern for median and MAD of `price` correspond to each other, it is perhaps interesting to investigate further the difference in the distribution of `price` between high- and low-median regions. We proceed by selecting the top 2 highest median regions and bottom 2 lowest median regions, then plotting the distribution of `price` for each of the corresponding regions. See *Figure 9*.
 
 ```{r groupdiff, fig.cap="group differences in price distribution"}
 ## top 2 high median regions
@@ -610,7 +596,7 @@ top.2.median <- price.by.region %>% slice_max(median, n = 2) %>% pull(region)
 ## lowest 2 low median regions
 lowest.2.median <- price.by.region %>% slice_min(median, n = 2) %>% pull(region)
 
-## plot the histograms for each region in the high and low median groups
+## plot the histograms for each region in the high- and low-median groups
 imputed[[1]] %>% 
   # subset top two and bottom two countries
   filter(region %in% c(top.2.median, lowest.2.median)) %>%
@@ -631,7 +617,8 @@ imputed[[1]] %>%
   labs(fill = "high/low regions")  
 ```
 
-An interesting take-away from *Figure 9* is that all the densities for the *house price* are right skewed. This is reasonable for house prices as one would expect that there are more cheap and moderately priced houses and only few very expensive houses. Furthermore, it is apparent that there are most sells in the dataset from the *Toscana* region and there are only very few very expensive houses in the regions of *Calabria* and *Molise* as one would expect with those regions having a lower median. ***maybe make this more clear***
+An interesting take-away from *Figure 9* is that all the densities for the *house price* are right skewed. This is reasonable as there is a fixed lower boundary to how cheap houses can be, the bulk represents what most people can afford, but there is no set limit on the maximum house price. Very expensive houses are rare, but theoretically there is no fixed upper limit to a house cost. There is a geographic trend to house prices in Italy. The most expensive sales in the dataset are from the *Toscana* region where there are many more expensive houses than in the regions of *Calabria* and *Molise* where the median house price tends to be lower.
+
 
 ### Conclusion
 All things considered, we found a general decrease in the median price when moving from northern to southern Italy. We also showed that higher medians on a regional level are due to a higher median on the province level with one region having a particular high median. Consequently, such regions where there is one province with a higher median of *house price*, the MAD is higher too if the other provinces in that region do not have a high median.
@@ -659,3 +646,4 @@ plot(imputations)
 ## plausibility of the imputed data
 densityplot(imputations, ~n_rooms + mq + floor + n_bathrooms + price, lwd = 2)
 ```
+
