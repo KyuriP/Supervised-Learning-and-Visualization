@@ -204,6 +204,8 @@ houses %>%
    theme_minimal() + custom.theme
 ```
 \newpage
+From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M. The distribution of housing prices after filtering can be seen in *Figure 2*.
+
 ```{r figure2, out.width="70%", fig.align='center', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
 ## density plot of price (cleaned dataset)
 houses %>% 
@@ -219,7 +221,6 @@ houses %>%
   theme_minimal() + custom.theme
 ```
 \newpage
-From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M. The distribution of housing prices after filtering can be seen in *Figure 2*.
 
 As shown in *Figure 2*, the distribution of housing prices still has a long right tail after eliminating extreme outliers, but that is to be expected with housing prices in any country. Based on this, we conclude that when working with this housing price data, it is advisable to use centrality and spread measures that are robust to skewed data. For this reason, we will use *median* and *median absolute deviation (MAD)* instead of the mean and variance in our exploration of the present dataset. 
 
@@ -334,6 +335,8 @@ houses.cleaned %>%
 *Figure 3* shows that `floor` and `n_rooms` have high percentage of missing values, which lies above 30\% and 25\% respectively. The variable `price` also has quite substantial missing values of about 18\%, followed by `n_bathrooms` that has about 6\% missing values. Except for `energy_class`, which has about 1\% missing, the remaining variables have no missing values.
 
 To explore further on the missingness of `price`, which is the variable of our main interest, we compute the correlation between missingness of *price* and other variables to see if there are any relations.
+
+\newpage
 
 ```{r}
 houses.cleaned %>%
@@ -589,6 +592,7 @@ ggarrange(plotlist = plot.list[c(2,4)], nrow = 1, ncol = 2, common.legend = TRUE
           legend = "bottom")
 ```
 
+\newpage
 On the regional level, we see that the median of price is the highest for region *Trentino-Alto Adige* (€200,000; the darkest blue), and the lowest for region *Molise* (€79,000; the brightest yellow). 
 We recognize that there is a geographical trend in housing price such that the median price is in general lower for the Southern regions compared to the Northern regions in Italy. 
 The only exception from this is the region *Piemonte* (€99,000), which has a lower median price than the surrounding regions.
@@ -599,7 +603,7 @@ Regarding the MAD, a measure of variability in housing price, we see that it is 
 
 Given that the overall geographical pattern for median and MAD of `price` correspond to each other, it is perhaps interesting to investigate further the difference in the distribution of `price` between high- and low-median regions. We proceed by selecting the top 2 highest median regions and bottom 2 lowest median regions, then plotting the distribution of `price` for each of the corresponding regions. See *Figure 9*.
 
-```{r groupdiff, fig.cap="Differences in Price Distribution"}
+```{r groupdiff, fig.cap="Differences in Price Distribution", out.width="80%"}
 ## top 2 high median regions
 top.2.median <- price.by.region %>% slice_max(median, n = 2) %>% pull(region)
 
@@ -627,21 +631,21 @@ imputed[[1]] %>%
   labs(fill = "high/low regions")  
 ```
 
-An interesting take-away from *Figure 9* is that all densities for the *house price* are right skewed. This is reasonable as there is a fixed lower boundary to how cheap houses can be, the bulk represents what most people can afford, but there is no set limit on the maximum house price. Very expensive houses are rare, but theoretically there is no fixed upper limit to a house cost. There is a geographic trend to house prices in Italy. The most expensive sales in the dataset are from the *Toscana* region where there are many more expensive houses than in the regions of *Calabria* and *Molise* where the median house price tends to be lower.
+\newpage
+An interesting take-away from *Figure 9* is that all densities for the *house price* are right skewed. This is reasonable as there is a fixed lower boundary to how cheap houses can be, the bulk represents what most people can afford, but there is no set limit on the maximum house price. The most expensive sales in the dataset are from the *Toscana* region where there are many more expensive houses than in the regions of *Calabria* and *Molise* where the median house price tends to be lower.
 
 ### Conclusion
-All things considered, we found a general decrease in the median price as well as the MAD of price when moving from Northern to Southern Italy. Consequently, such regions where there is one province with a higher median of *house price*, the MAD is higher too if the other provinces in that region do not have a high median.
+In this section, we found a general decreasing pattern in the median price as well as the MAD of price when moving from Northern to Southern Italy. It indicates that such regions with higher housing price (mainly located in North parts of Italy) tend to have more variability in housing price.
 
 
 # Overall Conclusion
 
 All things considered, we first identified that there were quite some missingness present in our dataset - including the variable of our interest `price`. Given that the missingness in our data seemed to be dependent on other variables, we concluded that it is not plausible to assume the missingness mechanism to be *MCAR*, and hence we decided to impute the missing values employing multiple imputation procedure.
 
-Using the imputed dataset, we explored the geographical pattern of housing price based on the median and MAD of `price` on the regional and provincial level in Italy. We found a trend in the median price from more expensive to cheaper when going from North to South. The same trend is observed with the MAD of housing price, which indicates that there are likely to be more expensive ...
+Using the imputed dataset, we explored the geographical pattern of housing price based on the median and MAD of `price` on the regional and provincial level in Italy. We found a trend in the median price from more expensive to cheaper when going from North to South. The same trend is observed with the MAD of housing price, which indicates that there are likely to be more extremely expensive houses spread over the Northern parts of Italy.
 
-We also have shown that these higher medians on a regional level are due to a higher median on the provincial level. In most cases, the MAD for such regions was high, too, as there frequently is one province with a higher median of *house price* and the MAD is consequently higher if the other provinces in that region do not have a high median, too. 
 
-# Appendix \label{ref:appendix}
+# Appendix 
 
 ## Summary of the raw data using the my_skim function.
 
