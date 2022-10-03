@@ -203,6 +203,7 @@ houses %>%
    # apply minimal theme plus our own customized theme
    theme_minimal() + custom.theme
 ```
+\newpage
 ```{r figure2, out.width="70%", fig.align='center', fig.cap="Histogram and Density Plot of Housing Price After Filtering"}
 ## density plot of price (cleaned dataset)
 houses %>% 
@@ -217,6 +218,7 @@ houses %>%
   # apply our theme
   theme_minimal() + custom.theme
 ```
+\newpage
 From *Figure 1*, we observe that there are extreme outliers in `price`. Some housing prices in the dataset are exorbitant (e.g., over €2B). We decide to focus the scope of our analysis on the houses whose price is less than or equal to €1M. The distribution of housing prices after filtering can be seen in *Figure 2*.
 
 As shown in *Figure 2*, the distribution of housing prices still has a long right tail after eliminating extreme outliers, but that is to be expected with housing prices in any country. Based on this, we conclude that when working with this housing price data, it is advisable to use centrality and spread measures that are robust to skewed data. For this reason, we will use *median* and *median absolute deviation (MAD)* instead of the mean and variance in our exploration of the present dataset. 
@@ -301,7 +303,7 @@ From the table of factor variables, we again see that `location` has 7023 unique
 
 <!-- The ratio of properties having an alarm is highest (99.10\%) and lowest for having air conditioning (70.24\%).  -->
 
-In the numeric table, we see that all variables except for the `property age` have some missing values. Furthermore, we see that the mean and median of `floor` is around 2 and the maximum is 52, indicating that most houses are with more less than 2 floors with some exception of high-rise multi-story houses. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$. Given that its standard deviation is 124.7, there seems quite some deviations in size of properties. The mean and median of property age is about 56.1 and 42 respectively, and the oldest one according to the dataset is 1022 years old. Considering the standard deviation of property age is also not small (74.4), we assume that there are probably few really old properties, while most of them are likely to fall under 100 years. We acknowledge that the minimum value of `price` and `mq` is 1, which may not be realistic. Yet, we decide to keep them as we are not completely certain if they were due to measurement/entry error.
+In the numeric table, we see that all variables have at least 10 missing values. Furthermore, we see that the mean and median of `floor` is around 2 and the maximum is 52, indicating that most houses have 2 floors with the exception of high-rise apartments. The average size in square meters (`mq`) for this dataset is 156.1 $m^2$. Given that its standard deviation is 124.7, there seems quite some deviations in size of properties. The mean and median of property age is about 56.1 and 42 respectively, and the oldest one according to the dataset is 1022 years old. Considering the standard deviation of property age is also not small (74.4), we assume that there are probably few really old properties, while most of them are likely to fall under 100 years. We acknowledge that the minimum value of `price` and `mq` is 1, which may not be realistic. Yet, we decide to keep them as we are not completely certain if they were due to measurement/entry error.
 
 # Answering the Exploratory Questions
 
@@ -348,7 +350,7 @@ houses.cleaned %>%
                of price and other variables", align="c")
 ```
 
-As shown in *Table 5*, the missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we visualize the count of missing values of `price` across different energy classes to see we can recognize any patterns (see *Figure 4*).
+As shown in *Table 5*, the missingness of `price` appears to be moderately correlated with the `energy_class` (*cor = -0.271*). Hence, we visualize the count of missing values of `price` across different energy classes to see whether we can recognize any patterns (see *Figure 4*).
 
 ```{r corrplots, fig.cap = "Missing Values in Price Across Different Energy Classes", out.width="80%", fig.align='center'}
 ## create a barplot for missing values in price vs energy classes
@@ -438,6 +440,8 @@ ggarrange(missing.plots("floor"),
 ```
 
 The missingness of number of floors (*Figure 6A*) and number of rooms (*Figure 6B*) do not seem to be dependent much on `price` information. Whereas for the number of bathrooms (*Figure 6C*) and the meters squared (*Figure 6D*) missingness show a different resulting density of `price`, namely, missingness tends to occur at higher house prices. 
+
+\newpage
 
 ### Conclusion
 
