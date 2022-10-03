@@ -519,10 +519,14 @@ province.median <- lapply(imputed, group.province, estimate = T) %>%
 province.mad <- lapply(imputed, group.province, estimate = F) %>% 
    do.call(cbind, .) %>% rowMeans() 
 
+# vector for the labels in the plots 
+labels <- c("Bolzano")
+
 # combine province results into one dataframe 
 price.by.province <- data.frame(province = sort(provinces$DEN_UTS), 
    median = province.median, mad = province.mad) %>% 
-   left_join(., provinces, by = c("province" = "DEN_PROV")) %>% st_as_sf()
+   left_join(., provinces, by = c("province" = "DEN_PROV")) %>% st_as_sf() %>%
+   mutate(label = ifelse(province %in% labels, province, NA))
 ```
 
 ```{r median_mad_region}
@@ -556,6 +560,8 @@ plot.list.2 <- map(
       geom_sf(aes(fill = .data[[var]])) +
       # void theme: remove all unncessary coordinates
       theme_void() +
+      # add labels to specific regions
+      geom_sf_text(aes(label = label), color = "black", size = 3.9, fontface = "bold") + 
       # color-scheme (color-blind friendly???)
       scale_fill_viridis_c(option = "E", direction = -1) +
       # lengthen the legend
