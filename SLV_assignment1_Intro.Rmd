@@ -396,7 +396,7 @@ data.geo %>%
 
 Next, we examine the relationships between the missingness of other variables that have high percentage of missing data (i.e., `floor`, `n_rooms`, `n_bathrooms`, `mq`) and `price`.
 
-For each variable we construct a missingness indicator and plot the density of price (on a log10-scale) while splitting the densities by the missingness indicator.
+For each variable, we construct a missingness indicator and plot the density of price (on a log10-scale) while splitting the densities by the missingness indicator.
 
 ```{r missingness_density, fig.cap = "Density Plots for Price based on the Missing Indicators"}
 ## function to create a density plot of price with missing indicator
@@ -427,7 +427,7 @@ ggarrange(missing.plots("floor"),
           ncol = 2, nrow = 2, common.legend = TRUE, legend = "bottom")
 ```
 
-The missingness of number of floors (*Figure 6A*) and number of rooms (*Figure 6B*) do not seem to be dependent on the observed price information. Whereas for the number of bathrooms (*Figure 6C*) and the meters squared (*Figure 6D*) missingness show a different result, namely, missingness tends to occur at higher house prices. 
+The missingness of number of floors (*Figure 6A*) and number of rooms (*Figure 6B*) do not seem to be dependent much on `price` information. Whereas for the number of bathrooms (*Figure 6C*) and the meters squared (*Figure 6D*) missingness show a different resulting density of `price`, namely, missingness tends to occur at higher house prices. 
 
 ### Conclusion
 
@@ -439,9 +439,7 @@ Additionally, we also examined if the missingness of the other variables and *ho
 
 ### Imputation
 
-We run five multiple imputations on our data using a selection of predictors derived from `quickpred`. Note that some of the following code chunks are set to `eval=FALSE`. They take a long time to run and need not be rerun as we saved the resulting objects and load them in subsequent chunks.
-
-***@EP could you 1) add save.RDS lines at the bottom of the eval = F chunks and 2) write a little bit more on what is being done here?***
+We run a multiple imputation procedure ($m = 5$) on our data using a selection of predictors derived from `quickpred`. We kept the default imputation method. This resulted in predictive mean matching for `price`, `floor`, `mq`, `property_age` and polynomial regression for `n_rooms`, `n_bathrooms`, and `energy_class`. Note that some of the following code chunks are set to `eval=FALSE`. They take a long time to run and need not be rerun as we saved the resulting objects and load them in subsequent chunks.
 
 ```{r imputation,eval=FALSE}
 ## create predictor matrix
@@ -451,7 +449,7 @@ predictors <- houses.cleaned %>% ungroup() %>% quickpred()
 imputations <- mice(houses.cleaned, m = 5, seed = 1, predictorMatrix = predictors)
 ```
 
-We limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data (see Appendix).
+We limited the diagnostics for the imputation procedure to the convergence of the algorithm and plausibility of the imputed data. There appeared to be no convergence issues and the imputed data appeared to be plausible with respect to the observed data (see *Appendix*).
 
 ```{r}
 ## load imputation results
@@ -494,12 +492,12 @@ houses.cleaned <- readRDS("data/housescleaned.rds")
 
 ## Question 2: Regional and Provincial Trends in the Median Housing Price and the Median Absolute Deviations in Italy
 
-We use the imputed dataset to explore whether there are geographical trends in the median and the median absolute deviation (MAD) *housing price*. 
+We use the imputed dataset to explore whether there are geographical trends in the median and the median absolute deviation (MAD) of *housing price* (as we previously discussed that `price` is highly skewed and therefore probably it is a good idea to use *median* and *MAD* rather than *mean* and *variance*).
 
 First we plot the median and the MAD on the regional and the provincial level:
 
 ```{r}
-## function to get aggregated region price information 
+## function to group by region and obtain price estimates
 group.region <- function(data, estimate) {
    data %>% 
       group_by(region) %>%
@@ -507,13 +505,16 @@ group.region <- function(data, estimate) {
       select(-region)
 }
 
+# derive pooled estimates per region  
 region.median <- lapply(imputed, group.region, estimate = T) %>% 
    do.call(cbind, .) %>% rowMeans() 
 region.mad <- lapply(imputed, group.region, estimate = F) %>% 
    do.call(cbind, .) %>% rowMeans() 
 
+# vector for the labels in the plots 
 labels <- c("Trentino-Alto Adige", "Molise", "Piemonte", "Bolzano", "Calabria")
 
+# combine region results into one dataframe 
 price.by.region <- data.frame(region = sort(regions$DEN_REG), 
    median = region.median, mad = region.mad) %>% 
    left_join(.,regions, by = c("region" = "DEN_REG")) %>% st_as_sf() %>%
@@ -521,7 +522,7 @@ price.by.region <- data.frame(region = sort(regions$DEN_REG),
 ```
 
 ```{r}
-## function to get aggregated province price information
+## function to group by province and obtain price estimates
 group.province <- function(data, estimate) {
    data %>% 
       group_by(province) %>%
@@ -529,11 +530,13 @@ group.province <- function(data, estimate) {
       select(-province)
 }
 
+# derive pooled estimates per province  
 province.median <- lapply(imputed, group.province, estimate = T) %>% 
    do.call(cbind, .) %>% rowMeans() 
 province.mad <- lapply(imputed, group.province, estimate = F) %>% 
    do.call(cbind, .) %>% rowMeans() 
 
+# combine province results into one dataframe 
 price.by.province <- data.frame(province = sort(provinces$DEN_UTS), 
    median = province.median, mad = province.mad) %>% 
    left_join(., provinces, by = c("province" = "DEN_PROV")) %>% st_as_sf()
@@ -552,7 +555,7 @@ plot.list.1 <- map(
       # void theme: remove all unncessary coordinates
       theme_void() +
       # add labels to specific regions
-      geom_sf_label(aes(label = label)) + 
+      geom_sf_text(aes(label = label), color = "black", size = 3.9, fontface = "bold") + 
       # color-scheme (color-blind friendly???)
       scale_fill_viridis_c(option = "E", direction = -1) +
       # lengthen the legend
