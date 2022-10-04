@@ -11,8 +11,8 @@
 \contentsline {subsubsection}{\numberline {5.1.2}Conclusion}{15}{subsubsection.5.1.2}%
 \contentsline {subsubsection}{\numberline {5.1.3}Imputation}{15}{subsubsection.5.1.3}%
 \contentsline {subsection}{\numberline {5.2}Question 2: Regional and Provincial Trends in the Median Housing Price and the Median Absolute Deviations in Italy}{15}{subsection.5.2}%
-\contentsline {subsubsection}{\numberline {5.2.1}Conclusion}{21}{subsubsection.5.2.1}%
-\contentsline {section}{\numberline {6}Overall Conclusion}{21}{section.6}%
-\contentsline {section}{\numberline {7}Appendix }{21}{section.7}%
+\contentsline {subsubsection}{\numberline {5.2.1}Conclusion}{20}{subsubsection.5.2.1}%
+\contentsline {section}{\numberline {6}Overall Conclusion}{20}{section.6}%
+\contentsline {section}{\numberline {7}Appendix}{21}{section.7}%
 \contentsline {subsection}{\numberline {7.1}Summary of the raw data using the my\_skim function.}{21}{subsection.7.1}%
 \contentsline {subsection}{\numberline {7.2}Convergence of the algorithm and plausability of the imputed dataset}{22}{subsection.7.2}%

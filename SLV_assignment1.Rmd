@@ -12,6 +12,10 @@ author:
 - Emilia Löscher 
 date: "October 3, 2022"
 output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
   pdf_document:
     latex_engine: xelatex
     number_sections: true
@@ -19,10 +23,6 @@ output:
     toc_depth: 1
     df_print: kable
     highlight: tango
-  html_document:
-    toc: true
-    toc_float: true
-    number_sections: true
 geometry: "left = 2cm, right = 2cm, top = 2cm, bottom = 2cm"
 linkcolor: NavyBlue
 fontsize: 11pt
